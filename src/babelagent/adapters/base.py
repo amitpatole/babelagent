@@ -53,7 +53,21 @@ def bind_payload(payload: Any, sig: inspect.Signature | None) -> tuple[tuple, di
             return (), dict(payload)
 
     if isinstance(payload, (list, tuple)):
-        return tuple(payload), {}
+        # Same discipline for positional splat: only when the item count exactly
+        # fills the required positional params (and there is no ``*args`` to soak
+        # up extras), so an untrusted list cannot positionally set a flag arg.
+        req_positional = [
+            p
+            for p in params
+            if p.default is inspect.Parameter.empty
+            and p.kind
+            in (inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD)
+        ]
+        has_var_positional = any(
+            p.kind is inspect.Parameter.VAR_POSITIONAL for p in sig.parameters.values()
+        )
+        if not has_var_positional and len(payload) == len(req_positional):
+            return tuple(payload), {}
 
     return (payload,), {}
 

@@ -89,6 +89,26 @@ def _guarded_client(*, allow_private: bool, timeout: float) -> httpx.AsyncClient
     )
 
 
+class _GuardTransportSync(httpx.HTTPTransport):
+    """Sync counterpart of :class:`_GuardTransport` for the OpenAPI fetch."""
+
+    def __init__(self, *args: Any, allow_private: bool = False, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self._allow_private = allow_private
+
+    def handle_request(self, request: httpx.Request) -> httpx.Response:
+        guard_url(str(request.url), allow_private=self._allow_private)
+        return super().handle_request(request)
+
+
+def _guarded_client_sync(*, allow_private: bool, timeout: float) -> httpx.Client:
+    return httpx.Client(
+        timeout=timeout,
+        follow_redirects=False,
+        transport=_GuardTransportSync(allow_private=allow_private),
+    )
+
+
 def guard_url(url: str, *, allow_private: bool = False) -> str:
     """Validate a URL's scheme and (unless ``allow_private``) block internal targets."""
     parsed = urlparse(url)
@@ -207,11 +227,12 @@ def _load_openapi(spec: Any, *, allow_private: bool) -> dict[str, Any]:
     if isinstance(spec, str):
         if spec.startswith(("http://", "https://")):
             url = guard_url(spec, allow_private=allow_private)
-            resp = httpx.get(url, timeout=30.0, follow_redirects=False)
-            resp.raise_for_status()
-            if len(resp.content) > MAX_RESPONSE_BYTES:
-                raise AdapterError("OpenAPI document exceeds size cap")
-            return resp.json()
+            with _guarded_client_sync(allow_private=allow_private, timeout=30.0) as client:
+                resp = client.get(url)
+                resp.raise_for_status()
+                if len(resp.content) > MAX_RESPONSE_BYTES:
+                    raise AdapterError("OpenAPI document exceeds size cap")
+                return resp.json()
         import json
 
         with open(spec, encoding="utf-8") as fh:

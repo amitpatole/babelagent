@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import time
 import uuid
 from typing import Any
@@ -12,6 +13,9 @@ from .message import Message, Result
 from .node import BarrierKind, BarrierPolicy, Node
 from .scheduler import DEFAULT_CONCURRENCY, run_topology
 from .topology import Topology
+
+# Grace added to the run deadline before the hard guillotine fires.
+_GUILLOTINE_GRACE_S = 1.0
 
 _BARRIER_ALIASES = {
     "all": BarrierKind.ALL,
@@ -136,7 +140,24 @@ class CompiledGraph:
         if context is None:
             deadline = time.monotonic() + deadline_s if deadline_s is not None else None
             context = Context(run_id=uuid.uuid4().hex, deadline=deadline)
-        return await run_topology(self.topology, message, context, concurrency=concurrency)
+        run = run_topology(self.topology, message, context, concurrency=concurrency)
+        if deadline_s is None:
+            return await run
+        # Hard wall-clock guillotine: per-node cancellation can be defeated by an
+        # agent that swallows CancelledError, so bound the whole run and abandon
+        # (rather than await) any stuck node tasks. Orphaned tasks from truly
+        # hostile async agents may linger until they yield — documented residual.
+        try:
+            return await asyncio.wait_for(run, deadline_s + _GUILLOTINE_GRACE_S)
+        except TimeoutError:
+            return Result(
+                output=None,
+                ok=False,
+                verdict="fail",
+                trace=[{"node": "<run>", "state": "failed",
+                        "reason": "run exceeded hard deadline", "errored": False,
+                        "elapsed_ms": 0}],
+            )
 
     def spec(self) -> dict[str, Any]:
         """JSON-serializable topology (for ``babelagent inspect``)."""

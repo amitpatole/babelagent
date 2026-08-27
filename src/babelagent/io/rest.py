@@ -114,8 +114,9 @@ def build_app(graph: Any, *, settings: Settings | None = None):  # type: ignore[
     async def require_host(host: str | None = Header(default=None)) -> None:
         if not loopback_only:
             return  # behind a proxy the Host is the public name; token gates access
-        raw = host or ""
-        hostname = raw[1:].split("]")[0] if raw.startswith("[") else raw.split(":")[0]
+        if not host:  # fail closed: a loopback bind requires an explicit Host
+            raise HTTPException(status_code=403, detail="host required")
+        hostname = host[1:].split("]")[0] if host.startswith("[") else host.split(":")[0]
         if not (hostname in ("localhost", settings.host) or _is_loopback(hostname)):
             raise HTTPException(status_code=403, detail="host not allowed")
 
@@ -131,10 +132,15 @@ def build_app(graph: Any, *, settings: Settings | None = None):  # type: ignore[
             except ValueError as exc:
                 raise HTTPException(status_code=400, detail="bad content-length") from exc
         body = bytearray()
-        async for chunk in request.stream():
-            body.extend(chunk)
-            if len(body) > cap:
-                raise HTTPException(status_code=413, detail="request too large")
+        try:
+            # Idle/slowloris bound: a trickled body cannot hold a slot forever.
+            with anyio.fail_after(settings.request_timeout_s):
+                async for chunk in request.stream():
+                    body.extend(chunk)
+                    if len(body) > cap:
+                        raise HTTPException(status_code=413, detail="request too large")
+        except TimeoutError as exc:
+            raise HTTPException(status_code=408, detail="request read timed out") from exc
         return bytes(body)
 
     @app.get("/health")

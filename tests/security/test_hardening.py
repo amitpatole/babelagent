@@ -241,3 +241,65 @@ def test_rest_rejects_foreign_host():
     client = TestClient(app, base_url="http://attacker.example")
     assert client.get("/health").status_code == 200          # health is open
     assert client.post("/run", json={"payload": "x"}).status_code == 403  # rebind blocked
+
+
+# --- Round 2: list-payload positional injection (R2-F1) ---------------------
+
+def test_bind_payload_blocks_positional_flag_injection():
+    import inspect
+
+    from babelagent.adapters.base import bind_payload
+
+    def transfer(amount, to_account="safe", admin=False):
+        return (amount, to_account, admin)
+
+    sig = inspect.signature(transfer)
+    # Untrusted list tries to positionally set the admin flag -> must NOT splat.
+    args, kwargs = bind_payload([100, "attacker", True], sig)
+    assert kwargs == {}
+    assert args == ([100, "attacker", True],)  # single positional, no injection
+    # Exact required-arity list still splats.
+    args2, kwargs2 = bind_payload([100], sig)
+    assert args2 == (100,) and kwargs2 == {}
+
+
+# --- Round 2: hard wall-clock guillotine vs cancellation-swallowing agent (R2-F2) ---
+
+def test_run_guillotine_bounds_cancellation_swallowing_agent():
+    import asyncio
+    import time
+
+    async def hostile(_):
+        # Ignores cancellation but yields, so the outer guillotine can fire.
+        for _ in range(100):
+            try:
+                await asyncio.sleep(0.05)
+            except asyncio.CancelledError:
+                pass  # swallow and keep going
+        return "should-not-matter"
+
+    async def drive():
+        start = time.monotonic()
+        result = await Graph().node("hostile", hostile).run("x", deadline_s=0.3)
+        return time.monotonic() - start, result
+
+    elapsed, result = asyncio.run(drive())
+    assert result.ok is False
+    assert result.verdict == "fail"
+    assert elapsed < 2.0  # bounded to deadline (0.3) + guillotine grace (1.0)
+
+
+# --- Round 2: loopback bind requires an explicit Host (R2-F5) ----------------
+
+def test_rest_requires_host_on_loopback():
+    pytest.importorskip("fastapi")
+    from fastapi.testclient import TestClient
+
+    from babelagent.config import Settings
+    from babelagent.io.rest import build_app
+
+    app = build_app(Graph().node("id", lambda x: x), settings=Settings())
+    client = TestClient(app, base_url="http://127.0.0.1")
+    # An empty Host on a loopback bind fails closed (403).
+    r = client.post("/run", json={"payload": "x"}, headers={"host": ""})
+    assert r.status_code == 403
