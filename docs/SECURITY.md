@@ -16,6 +16,10 @@ deploy safely, and the residual risks no audit removes.
   concurrency semaphore; `limit_concurrency` + `timeout_keep_alive` on uvicorn.
 - Caller-supplied `deadline_s` is validated (finite, positive) and **clamped** to the server ceiling
   (it can only lower the run budget, never raise it), backed by a hard wall-clock guillotine on the run.
+  The REST service always passes a deadline, so the guillotine is always active there. Note the
+  guillotine is **opt-in for direct library calls**: `graph.run(x)` with no `deadline_s` runs unbounded
+  (trusted local use); pass `deadline_s=` to bound an untrusted run. Cancellation cleanup (in-flight
+  nodes are cancelled and awaited when a run is cancelled or the client disconnects) is unconditional.
 - Errors are sanitized: internal exception messages are redacted from the returned trace.
 
 **Outbound requests (HTTP / OpenAPI / A2A adapters).**

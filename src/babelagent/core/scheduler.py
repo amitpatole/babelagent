@@ -103,14 +103,21 @@ class _Run:
 
     # --- input gathering --------------------------------------------------
     def gather_input(self, name: str) -> Message:
+        # The input SHAPE is decided by the number of DECLARED upstreams, not by
+        # how many survived. A node with one declared upstream always receives
+        # that message unwrapped (a linear chain); a node with two or more
+        # declared upstreams (a join) ALWAYS receives a dict keyed by the
+        # surviving upstream names — even under k_of_n when only one survived.
+        # This keeps a join agent's input type stable; it inspects which keys
+        # are present, but the type never flips between a bare value and a dict.
         node = self.topo.nodes[name]
         if not node.after:
             return self.initial
         contributing = [
             u for u in node.after if self.states[u] is NodeState.DONE and u in self.outputs
         ]
-        if len(contributing) == 1:
-            return self.outputs[contributing[0]]
+        if len(node.after) == 1:
+            return self.outputs[contributing[0]] if contributing else Message(payload=None)
         merged_payload = {u: self.outputs[u].payload for u in contributing}
         merged_meta: dict[str, Any] = {}
         for u in contributing:
@@ -156,43 +163,56 @@ class _Run:
     # --- driver -----------------------------------------------------------
     async def execute(self) -> Result:
         running: dict[str, asyncio.Task[_Outcome]] = {}
-        while True:
-            progressed = False
+        try:
+            while True:
+                progressed = False
 
-            # Mark nodes whose barrier can never be satisfied as skipped.
-            for name in self.topo.nodes:
-                if self.states[name] is NodeState.PENDING and self.barrier_impossible(name):
-                    self.states[name] = NodeState.SKIPPED
-                    self.records.append(
-                        {"node": name, "state": "skipped",
-                         "reason": "upstream barrier unsatisfiable"}
+                # Mark nodes whose barrier can never be satisfied as skipped.
+                for name in self.topo.nodes:
+                    if self.states[name] is NodeState.PENDING and self.barrier_impossible(name):
+                        self.states[name] = NodeState.SKIPPED
+                        self.records.append(
+                            {"node": name, "state": "skipped",
+                             "reason": "upstream barrier unsatisfiable"}
+                        )
+                        progressed = True
+
+                # Launch every ready node. The semaphore in run_node bounds how
+                # many run CONCURRENTLY; it does not bound task creation, so a
+                # wide fan-out still creates one task per ready node. Graph size
+                # is author-defined at build time (not attacker-driven over the
+                # network, which only injects the payload into a compiled graph).
+                for name in self.topo.nodes:
+                    if (
+                        self.states[name] is NodeState.PENDING
+                        and name not in running
+                        and self.barrier_ready(name)
+                    ):
+                        self.states[name] = NodeState.RUNNING
+                        running[name] = asyncio.create_task(self.run_node(name))
+
+                if running:
+                    done, _ = await asyncio.wait(
+                        running.values(), return_when=asyncio.FIRST_COMPLETED
                     )
-                    progressed = True
+                    for task in done:
+                        outcome = task.result()
+                        self._absorb(outcome)
+                        running.pop(outcome.name, None)
+                    continue
 
-            # Launch every ready node.
-            for name in self.topo.nodes:
-                if (
-                    self.states[name] is NodeState.PENDING
-                    and name not in running
-                    and self.barrier_ready(name)
-                ):
-                    self.states[name] = NodeState.RUNNING
-                    running[name] = asyncio.create_task(self.run_node(name))
+                if not progressed:
+                    break
 
+            return self._finish()
+        finally:
+            # On cancellation (the run guillotine, or a REST client disconnect)
+            # cancel and await the in-flight node tasks, so cooperative agents
+            # actually receive the CancelledError instead of being orphaned.
             if running:
-                done, _ = await asyncio.wait(
-                    running.values(), return_when=asyncio.FIRST_COMPLETED
-                )
-                for task in done:
-                    outcome = task.result()
-                    self._absorb(outcome)
-                    running.pop(outcome.name, None)
-                continue
-
-            if not progressed:
-                break
-
-        return self._finish()
+                for task in running.values():
+                    task.cancel()
+                await asyncio.gather(*running.values(), return_exceptions=True)
 
     def _absorb(self, outcome: _Outcome) -> None:
         self.states[outcome.name] = outcome.state
@@ -212,14 +232,16 @@ class _Run:
         )
 
     def _finish(self) -> Result:
+        # Same shape contract as gather_input: the result shape is decided by the
+        # number of DECLARED terminals, not how many finished. One terminal -> its
+        # payload, unwrapped; two or more -> always a dict keyed by the terminals
+        # that completed. The return type never flips based on which branch flaked.
         terminals = self.topo.terminals()
         done_terminals = [t for t in terminals if self.states[t] is NodeState.DONE]
-        if len(done_terminals) == 1:
-            output: Any = self.outputs[done_terminals[0]].payload
-        elif done_terminals:
-            output = {t: self.outputs[t].payload for t in done_terminals}
+        if len(terminals) == 1:
+            output: Any = self.outputs[done_terminals[0]].payload if done_terminals else None
         else:
-            output = None
+            output = {t: self.outputs[t].payload for t in done_terminals}
 
         # The run succeeded if every terminal produced its output. A failure on a
         # branch that a downstream barrier (k_of_n / optional) tolerated is

@@ -5,6 +5,20 @@ All notable changes to Babelagent are documented here. Format follows
 
 ## [Unreleased]
 
+### Fixed (code-review follow-ups)
+- **Join input shape is now stable (behavioural contract).** A node with one declared upstream always
+  receives its message unwrapped; a node with **two or more** declared upstreams always receives a dict
+  keyed by the surviving upstream names — even under `k_of_n` when only one survived. Previously the
+  type flipped between a bare value and a dict depending on which sibling flaked. `Result.output`
+  follows the same rule (by declared-terminal count). Pinned by tests both ways.
+- **Cancellation no longer orphans tasks.** `execute()` now cancels and awaits in-flight node tasks in
+  a `finally`, so a cancelled run or a disconnected REST client delivers `CancelledError` to
+  cooperative agents instead of leaking them.
+- Corrected the scheduler's concurrency comment (the semaphore bounds concurrent *execution*, not task
+  creation) and documented that the run guillotine is opt-in for direct library calls (always on for
+  REST). Documented that entry-point adapter plugins run code and take dispatch priority
+  (`BABELAGENT_NO_PLUGINS=1` to disable).
+
 ### Security
 - Completed the full security cadence over the REST / MCP / A2A / HTTP surface: a 3-surface audit and
   **four adversarial red-team rounds** (final round found nothing new). Fixed and regression-pinned:

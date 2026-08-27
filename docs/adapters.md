@@ -74,5 +74,12 @@ register_adapter(
 ```
 
 Across packages, declare an entry point in the `babelagent.adapters` group; Babelagent discovers it the
-first time `adapt()` runs. Discovery runs installed plugin code by design — set
-`BABELAGENT_NO_PLUGINS=1` to disable it in locked-down environments.
+first time `adapt()` runs.
+
+!!! warning "Plugins run code and take dispatch priority"
+    Entry-point discovery is **on by default** and **runs the installed plugin's module code** the
+    first time `adapt()` is called. Registered adapters (in-process *and* from plugins) are tried
+    **before** every built-in, so a plugin whose `matches()` returns `True` for everything can hijack
+    adaptation of any object and observe every adapted value. This is standard Python plugin behavior,
+    but it is a supply-chain trust boundary: **trust your installed dependency set.** In locked-down
+    environments set `BABELAGENT_NO_PLUGINS=1` to disable entry-point discovery entirely.
