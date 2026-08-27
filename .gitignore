@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+*.egg
+
+# Virtual envs
+.venv/
+venv/
+env/
+
+# Tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Docs build
+site/
+
+# OS
+.DS_Store
+
+# Security cadence — NEVER commit residuals / red-team notes / PoCs (local only)
+.security-local/
+docs/SECURITY_RESIDUALS.md
+
+# Local env / secrets (creds live in ~/.config, never here)
+.env
+*.local.toml

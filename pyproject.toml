@@ -1,0 +1,85 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "byoa-sdk"
+version = "0.1.0"
+description = "Bring Your Own Agent — a factory + assembly line SDK: plug any agent onto a station and produce what you want."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Amit Patole", email = "amit.patole@gmail.com" }]
+keywords = ["ai", "agents", "orchestration", "pipeline", "dag", "adapters", "byoa"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Application Frameworks",
+    "Typing :: Typed",
+]
+dependencies = [
+    "pydantic>=2.6",
+    "pydantic-settings>=2.2",
+    "typer>=0.12",
+    "httpx>=0.27",
+    "platformdirs>=4.0",
+]
+
+[project.optional-dependencies]
+mcp = ["mcp>=1.2"]
+cloud = ["anthropic>=0.40", "openai>=1.0"]
+ollama = ["ollama>=0.3"]
+frameworks = ["langchain-core>=0.3"]
+serve = ["fastapi>=0.110", "uvicorn[standard]>=0.29", "python-multipart>=0.0.9"]
+agentsensory = ["agentsensory>=0.1"]
+all = [
+    "mcp>=1.2",
+    "anthropic>=0.40",
+    "openai>=1.0",
+    "ollama>=0.3",
+    "langchain-core>=0.3",
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.29",
+    "python-multipart>=0.0.9",
+]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "ruff>=0.5",
+    "mypy>=1.10",
+]
+
+[project.scripts]
+byoa = "byoa.io.cli:main"
+
+# Built-in adapters register here; third parties add their own entry points to
+# extend adapt() without patching core.
+[project.entry-points."byoa.adapters"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/byoa"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "W"]
+# UP042: we keep `str, Enum` (explicit `.value` usage) rather than StrEnum.
+ignore = ["E501", "UP042"]
+
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = ["typer.Option", "typer.Argument", "fastapi.Depends"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
+warn_unused_ignores = false
