@@ -30,8 +30,22 @@ All notable changes to Babelagent are documented here. Format follows
   behind extras, defaults to the latest Claude model).
 - Extensible registry: `register_adapter(...)` and the `babelagent.adapters` entry-point group.
 
+### Added — A2A adapter
+- **`A2AAgent` / `A2ARef`**: consume a remote Agent2Agent (A2A) agent as a node via the
+  `message/send` JSON-RPC method, with Agent Card discovery. Built on httpx (base wheel, no extra),
+  SSRF-guarded. `adapt(A2ARef(url))` wires a remote agent into the graph. This is the "consume the
+  protocols, don't compete with them" position: a remote A2A agent becomes just another `Agent`.
+
 ### Added — interfaces
-- `babelagent` CLI (Typer): `demo`, `doctor`, `inspect`, `version`.
+- `babelagent` CLI (Typer): `demo`, `doctor`, `inspect`, `serve`, `mcp`, `version`.
+- **REST service** (`babelagent.io.rest`, `serve` extra): serve a graph over HTTP. Hardened from
+  birth — constant-time bearer auth, zero-config on loopback but fail-closed (refuses to bind a
+  non-loopback host without a token), request-body size cap enforced before buffering, a concurrency
+  semaphore, deadline-bounded runs, and sanitized errors. Endpoints: `GET /health`, `GET /graph`,
+  `POST /run`.
+- **MCP server** (`babelagent.io.mcp`, `mcp` extra): expose a graph as MCP tools (`run_graph`,
+  `graph_topology`) so any MCP client can run a whole graph. Works across MCP SDK 2.x (`MCPServer`)
+  and 1.x (`FastMCP`).
 - Key-free `babelagent demo`: a broken agent gated to FAIL, then a fixed one producing a PASS result.
 
 [Unreleased]: https://example.invalid/babelagent/compare

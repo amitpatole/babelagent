@@ -28,8 +28,9 @@ def run_checks() -> list[Check]:
     checks.append(Check("core deps (pydantic, httpx, typer)",
                         _has("pydantic") and _has("httpx") and _has("typer"),
                         "base wheel"))
+    checks.append(Check("callable + HTTP + A2A adapters", True, "base wheel (no extra)"))
     families = {
-        "mcp": ("MCP adapter", "mcp"),
+        "mcp": ("MCP adapter + MCP server", "mcp"),
         "anthropic": ("Anthropic LLM", "cloud"),
         "openai": ("OpenAI LLM", "cloud"),
         "ollama": ("Ollama LLM", "ollama"),

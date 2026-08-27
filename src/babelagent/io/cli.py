@@ -51,6 +51,28 @@ def demo() -> None:
 
 
 @app.command()
+def serve(
+    host: str = typer.Option("127.0.0.1", help="Bind host (non-loopback requires a token)."),
+    port: int = typer.Option(8099, help="Bind port."),
+) -> None:
+    """Serve the demo graph over HTTP (requires the `serve` extra)."""
+    from ._demo_assets import build_fixed
+    from .rest import serve as _serve
+
+    typer.echo(f"babelagent serve → http://{host}:{port} (POST /run)")
+    _serve(build_fixed(), host=host, port=port)
+
+
+@app.command()
+def mcp() -> None:
+    """Expose the demo graph as an MCP server over stdio (requires the `mcp` extra)."""
+    from ._demo_assets import build_fixed
+    from .mcp import build_server
+
+    build_server(build_fixed()).run()
+
+
+@app.command()
 def inspect(
     source: str | None = typer.Argument(
         None, help="Path to a Python file exposing a `graph` (optional)."

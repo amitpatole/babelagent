@@ -61,6 +61,8 @@ __all__ = [
     "Verdict",
     "adapt",
     "register_adapter",
+    "A2ARef",
+    "McpRef",
     "BabelagentError",
     "AdapterError",
     "CycleError",
@@ -68,9 +70,9 @@ __all__ = [
     "MissingDependencyError",
 ]
 
-# adapt() and the registry live in the adapters package; expose lazily so that
+# adapt() and the adapter refs live in the adapters package; expose lazily so
 # importing babelagent never eagerly pulls optional adapter dependencies.
-_LAZY = {"adapt", "register_adapter"}
+_LAZY = {"adapt", "register_adapter", "A2ARef", "McpRef"}
 
 
 def __getattr__(name: str) -> Any:

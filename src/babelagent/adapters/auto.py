@@ -91,6 +91,14 @@ def adapt(obj: Any, *, name: str | None = None, **hints: Any) -> Agent:
     if isinstance(obj, McpRef):
         return McpAgent(obj)
 
+    # Remote A2A (Agent2Agent) reference.
+    from .a2a_agent import A2AAgent, A2ARef
+
+    if isinstance(obj, A2ARef):
+        return A2AAgent(
+            obj.url, name=name or obj.name, allow_private=obj.allow_private, **hints
+        )
+
     # Framework agents (detected without importing the frameworks).
     from . import frameworks as fw
 
