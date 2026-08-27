@@ -7,6 +7,7 @@ any other (agent-to-agent).
 
 from __future__ import annotations
 
+import inspect
 import time
 from dataclasses import dataclass, field
 from typing import Any, Protocol, runtime_checkable
@@ -53,12 +54,23 @@ class Agent(Protocol):
 
 
 def is_agent(obj: object) -> bool:
-    """True if *obj* already conforms to the :class:`Agent` protocol."""
-    return (
-        hasattr(obj, "name")
-        and hasattr(obj, "run")
-        and callable(getattr(obj, "run", None))
-    )
+    """True if *obj* already conforms to the :class:`Agent` protocol.
+
+    Checks the shape strictly (a ``name``, and an async ``run`` that accepts a
+    message and a context) so a random object that merely happens to have a
+    ``.name`` and a ``.run`` is NOT silently accepted and then failed with a
+    cryptic TypeError deep inside a run — it gets adapted or rejected up front.
+    """
+    run = getattr(obj, "run", None)
+    if not hasattr(obj, "name") or not callable(run):
+        return False
+    if not inspect.iscoroutinefunction(run):
+        return False
+    try:
+        inspect.signature(run).bind("message", "ctx")  # accepts (message, ctx)?
+    except TypeError:
+        return False
+    return True
 
 
 class IdentityAgent:

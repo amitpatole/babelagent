@@ -73,20 +73,12 @@ def mcp() -> None:
 
 
 @app.command()
-def inspect(
-    source: str | None = typer.Argument(
-        None, help="Path to a Python file exposing a `graph` (optional)."
-    ),
-) -> None:
-    """Print the topology of the demo graph (or a graph from a file)."""
-    if source is None:
-        from ._demo_assets import build_fixed
+def inspect() -> None:
+    """Print the demo graph's topology as JSON."""
+    from ._demo_assets import build_fixed
 
-        graph = build_fixed().compile()
-        typer.echo(json.dumps(graph.spec(), indent=2))
-        return
-    typer.secho("Loading a graph from a file is not wired yet.", fg=typer.colors.YELLOW)
-    raise typer.Exit(code=1)
+    graph = build_fixed().compile()
+    typer.echo(json.dumps(graph.spec(), indent=2))
 
 
 def _last_reason(result) -> str:  # type: ignore[no-untyped-def]

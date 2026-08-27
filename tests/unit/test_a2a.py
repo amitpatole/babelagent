@@ -78,3 +78,22 @@ async def test_a2a_error_response_raises(monkeypatch):
 
     with pytest.raises(AdapterError, match="boom"):
         await agent.run(Message(payload="ping"), Context(run_id="t"))
+
+
+# --- Review fixes: list result + artifact/status dedup ----------------------
+
+def test_extract_text_from_list_result():
+    result = [
+        {"parts": [{"kind": "text", "text": "a"}]},
+        {"parts": [{"kind": "text", "text": "b"}]},
+    ]
+    assert _extract_text(result) == "a\nb"
+
+
+def test_extract_text_dedups_artifact_and_status_echo():
+    result = {
+        "artifacts": [{"parts": [{"kind": "text", "text": "answer"}]}],
+        "status": {"message": {"parts": [{"kind": "text", "text": "answer"}]}},
+    }
+    # artifact text is preferred; the status echo is NOT appended (no "answer\nanswer")
+    assert _extract_text(result) == "answer"

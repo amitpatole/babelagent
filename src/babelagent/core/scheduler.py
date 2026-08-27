@@ -57,6 +57,26 @@ async def _maybe_await(value: Any) -> Any:
     return value
 
 
+def _record(
+    node: str,
+    state: str,
+    *,
+    verdict: str | None = None,
+    reason: str = "",
+    elapsed_ms: int = 0,
+    errored: bool = False,
+) -> dict[str, Any]:
+    """A trace record with a UNIFORM key set (skipped/timeout rows included)."""
+    return {
+        "node": node,
+        "state": state,
+        "verdict": verdict,
+        "reason": reason,
+        "elapsed_ms": elapsed_ms,
+        "errored": errored,
+    }
+
+
 class _Run:
     """Holds mutable state for a single graph execution."""
 
@@ -87,8 +107,9 @@ class _Run:
             return len(self._succeeded(ups)) == len(ups)
         if kind is BarrierKind.K_OF_N:
             return len(self._succeeded(ups)) >= (node.barrier.k or 1)
-        # OPTIONAL: run once everything upstream has settled.
-        return self._settled(ups)
+        # OPTIONAL: run once settled, provided at least one upstream succeeded
+        # (otherwise there is nothing to hand the node — see barrier_impossible).
+        return self._settled(ups) and len(self._succeeded(ups)) >= 1
 
     def barrier_impossible(self, name: str) -> bool:
         node = self.topo.nodes[name]
@@ -103,7 +124,8 @@ class _Run:
             return len(failed) > 0
         if kind is BarrierKind.K_OF_N:
             return len(succeeded) + len(pending) < (node.barrier.k or 1)
-        return False  # OPTIONAL can always eventually settle
+        # OPTIONAL: unsatisfiable only if everyone settled and none succeeded.
+        return self._settled(ups) and len(succeeded) == 0
 
     # --- input gathering --------------------------------------------------
     def gather_input(self, name: str) -> Message:
@@ -175,10 +197,9 @@ class _Run:
                 for name in self.topo.nodes:
                     if self.states[name] is NodeState.PENDING and self.barrier_impossible(name):
                         self.states[name] = NodeState.SKIPPED
-                        self.records.append(
-                            {"node": name, "state": "skipped",
-                             "reason": "upstream barrier unsatisfiable"}
-                        )
+                        self.records.append(_record(
+                            name, "skipped", reason="upstream barrier unsatisfiable"
+                        ))
                         progressed = True
 
                 # Launch every ready node. The semaphore in run_node bounds how
@@ -199,8 +220,9 @@ class _Run:
                     done, _ = await asyncio.wait(
                         running.values(), return_when=asyncio.FIRST_COMPLETED
                     )
-                    for task in done:
-                        outcome = task.result()
+                    # Absorb in a deterministic (node-name) order so the trace is
+                    # stable for siblings that complete in the same event-loop wake.
+                    for outcome in sorted((t.result() for t in done), key=lambda o: o.name):
                         self._absorb(outcome)
                         running.pop(outcome.name, None)
                     continue
@@ -226,16 +248,14 @@ class _Run:
             self.outputs[outcome.name] = outcome.message
         if outcome.grade is not None:
             self.grades[outcome.name] = outcome.grade
-        self.records.append(
-            {
-                "node": outcome.name,
-                "state": outcome.state.value,
-                "verdict": (outcome.grade.verdict.value if outcome.grade else None),
-                "reason": outcome.error or (outcome.grade.reason if outcome.grade else ""),
-                "elapsed_ms": outcome.elapsed_ms,
-                "errored": outcome.errored,
-            }
-        )
+        self.records.append(_record(
+            outcome.name,
+            outcome.state.value,
+            verdict=(outcome.grade.verdict.value if outcome.grade else None),
+            reason=outcome.error or (outcome.grade.reason if outcome.grade else ""),
+            elapsed_ms=outcome.elapsed_ms,
+            errored=outcome.errored,
+        ))
 
     def _finish(self) -> Result:
         # Same shape contract as gather_input: the result shape is decided by the
@@ -256,6 +276,10 @@ class _Run:
         verdict = Verdict.worst([g.verdict for g in self.grades.values()])
         if not ok:
             verdict = Verdict.FAIL
+        elif any(s is NodeState.FAILED for s in self.states.values()):
+            # A tolerated branch crashed (no Grade of its own): surface it as at
+            # least WARN so verdict==pass never hides an errored node.
+            verdict = Verdict.worst([verdict, Verdict.WARN])
         return Result(output=output, ok=ok, verdict=verdict.value, trace=self.records)
 
 

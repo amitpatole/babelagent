@@ -12,10 +12,7 @@ doi: 10.5281/zenodo.22129957
 identifiers:
   - type: doi
     value: 10.5281/zenodo.22129957
-    description: Concept DOI (all versions)
-  - type: doi
-    value: 10.5281/zenodo.22129958
-    description: Version DOI (v0.1.0)
+    description: Concept DOI (resolves to the latest version)
 abstract: >-
   The Babel that lets AI agents understand each other: a neutral, framework-agnostic
   layer where heterogeneous agents (callables, HTTP/OpenAPI, MCP, framework agents,
@@ -27,4 +24,4 @@ keywords:
   - interoperability
   - multi-agent
 license: MIT
-version: 0.1.0
+version: 0.1.1

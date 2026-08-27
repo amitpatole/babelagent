@@ -154,9 +154,9 @@ class CompiledGraph:
                 output=None,
                 ok=False,
                 verdict="fail",
-                trace=[{"node": "<run>", "state": "failed",
-                        "reason": "run exceeded hard deadline", "errored": False,
-                        "elapsed_ms": 0}],
+                trace=[{"node": "<run>", "state": "failed", "verdict": None,
+                        "reason": "run exceeded hard deadline", "elapsed_ms": 0,
+                        "errored": False}],
             )
 
     def spec(self) -> dict[str, Any]:

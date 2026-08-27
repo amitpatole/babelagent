@@ -43,13 +43,20 @@ def bind_payload(payload: Any, sig: inspect.Signature | None) -> tuple[tuple, di
         return (payload,), {}
 
     if isinstance(payload, dict):
+        # A required positional-only param can never be filled by **kwargs, so a
+        # dict-spread would always TypeError — fall back to a single positional.
+        has_required_pos_only = any(
+            p.default is inspect.Parameter.empty
+            and p.kind is inspect.Parameter.POSITIONAL_ONLY
+            for p in params
+        )
         required = {
             p.name
             for p in params
             if p.default is inspect.Parameter.empty
             and p.kind is not inspect.Parameter.POSITIONAL_ONLY
         }
-        if required and set(payload) == required:
+        if not has_required_pos_only and required and set(payload) == required:
             return (), dict(payload)
 
     if isinstance(payload, (list, tuple)):

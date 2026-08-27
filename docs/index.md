@@ -47,7 +47,7 @@ sits *on top of* A2A/MCP rather than against them).
 pip install babelagent                 # light base (callables + HTTP + A2A)
 pip install "babelagent[mcp]"          # MCP tools + MCP server
 pip install "babelagent[cloud]"        # Anthropic / OpenAI
-pip install "babelagent[frameworks]"   # LangChain / CrewAI / AutoGen
+pip install "babelagent[frameworks]"   # LangChain (CrewAI/AutoGen detected if installed)
 pip install "babelagent[serve]"        # REST service
 pip install "babelagent[all]"
 ```

@@ -47,6 +47,10 @@ class CallableAgent:
             out = await self.fn(*args, **kwargs)
         else:
             out = await asyncio.to_thread(self.fn, *args, **kwargs)
+        # A plain function may itself RETURN a coroutine/awaitable (e.g. it wraps
+        # an async client). Await it so the payload is the value, not a coroutine.
+        if inspect.isawaitable(out):
+            out = await out
         if isinstance(out, Message):
             return out
         return message.with_payload(out, node=self.name)

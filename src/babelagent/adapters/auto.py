@@ -75,7 +75,7 @@ def adapt(obj: Any, *, name: str | None = None, **hints: Any) -> Agent:
     """Return an :class:`Agent` for *obj*, inferring the right adapter.
 
     Resolution order: already-an-Agent → custom/entry-point registrations →
-    MCP ref → framework agent → HTTP/OpenAPI → plain callable.
+    MCP ref → A2A ref → framework agent → HTTP/OpenAPI → plain callable.
     """
     _load_entrypoint_adapters()
 

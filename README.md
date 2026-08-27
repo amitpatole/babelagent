@@ -41,10 +41,13 @@ Let different agents work in parallel and hand their results to each other, with
 the join:
 
 ```python
+from babelagent import Graph, adapt
+
 g = Graph()
 g.node("src",     lambda text: text)
 g.node("summary", adapt(langchain_agent), after=["src"])   # a LangChain agent
 g.node("labels",  adapt("https://api.example.com/classify"), after=["src"])  # an HTTP service
+# merge receives {"summary": ..., "labels": ...} keyed by node name (>=2 upstreams)
 g.join("merge", after=["summary", "labels"], agent=combine, barrier="all")
 result = await g.run(document)
 ```
@@ -68,7 +71,7 @@ pip install babelagent                 # light base (callables + HTTP)
 pip install "babelagent[mcp]"          # MCP tools
 pip install "babelagent[cloud]"        # Anthropic / OpenAI
 pip install "babelagent[ollama]"       # local models
-pip install "babelagent[frameworks]"   # LangChain / CrewAI / AutoGen
+pip install "babelagent[frameworks]"   # LangChain (CrewAI/AutoGen detected if installed)
 pip install "babelagent[serve]"        # REST service
 pip install "babelagent[all]"
 ```

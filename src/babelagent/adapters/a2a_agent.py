@@ -94,21 +94,31 @@ class A2AAgent:
 
 def _extract_text(result: Any) -> Any:
     """Pull text out of an A2A Message or Task result, tolerant of shape drift."""
+    # Some servers return a list (of messages/parts) as the JSON-RPC result.
+    if isinstance(result, list):
+        joined = "\n".join(s for s in (str(_extract_text(x)) for x in result) if s)
+        return joined or result
     if not isinstance(result, dict):
         return result
     # A direct Message: {"parts": [...]}
     if "parts" in result:
         return _join_parts(result["parts"])
-    # A Task: prefer artifacts, then the status message.
-    texts: list[str] = []
-    for artifact in result.get("artifacts") or []:
-        if isinstance(artifact, dict):
-            texts.append(_join_parts(artifact.get("parts") or []))
-    status = result.get("status") or {}
-    status_msg = status.get("message") if isinstance(status, dict) else None
-    if isinstance(status_msg, dict):
-        texts.append(_join_parts(status_msg.get("parts") or []))
-    joined = "\n".join(t for t in texts if t)
+    # A Task: prefer artifact text; only fall back to the status message if the
+    # artifacts carried none (many servers echo the answer in both -> dedup).
+    artifact_texts = [
+        _join_parts(a.get("parts") or [])
+        for a in (result.get("artifacts") or [])
+        if isinstance(a, dict)
+    ]
+    texts = [t for t in artifact_texts if t]
+    if not texts:
+        status = result.get("status") or {}
+        status_msg = status.get("message") if isinstance(status, dict) else None
+        if isinstance(status_msg, dict):
+            t = _join_parts(status_msg.get("parts") or [])
+            if t:
+                texts.append(t)
+    joined = "\n".join(texts)
     return joined or result
 
 

@@ -40,7 +40,7 @@ from .core.errors import (
     TopologyError,
 )
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 __all__ = [
     "__version__",
@@ -63,6 +63,7 @@ __all__ = [
     "register_adapter",
     "A2ARef",
     "McpRef",
+    "LLM",
     "BabelagentError",
     "AdapterError",
     "CycleError",
@@ -70,9 +71,9 @@ __all__ = [
     "MissingDependencyError",
 ]
 
-# adapt() and the adapter refs live in the adapters package; expose lazily so
-# importing babelagent never eagerly pulls optional adapter dependencies.
-_LAZY = {"adapt", "register_adapter", "A2ARef", "McpRef"}
+# adapt(), the adapter refs, and LLM live in the adapters package; expose them
+# lazily so importing babelagent never eagerly pulls optional adapter deps.
+_LAZY = {"adapt", "register_adapter", "A2ARef", "McpRef", "LLM"}
 
 
 def __getattr__(name: str) -> Any:

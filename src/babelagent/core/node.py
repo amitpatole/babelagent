@@ -19,7 +19,8 @@ class BarrierKind(str, Enum):
     K_OF_N = "k_of_n"
     """At least ``k`` upstreams must succeed."""
     OPTIONAL = "optional"
-    """Proceed once all upstreams have settled, regardless of pass/fail."""
+    """Proceed once settled if at least one upstream succeeded; skip the node if
+    none did (there would be nothing to hand it)."""
 
 
 @dataclass

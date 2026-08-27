@@ -24,13 +24,14 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # REST service (babelagent.io.rest)
+    # REST service (babelagent.io.rest). Constraints make an operator typo fail
+    # fast (a bad env var) instead of silently rejecting all traffic / timing out.
     api_token: str | None = None
     host: str = "127.0.0.1"
-    port: int = 8099
-    max_body_bytes: int = 8 * 1024 * 1024  # 8 MiB request cap
-    max_concurrency: int = 8
-    request_timeout_s: float = 60.0
+    port: int = Field(default=8099, ge=1, le=65535)
+    max_body_bytes: int = Field(default=8 * 1024 * 1024, gt=0)  # 8 MiB request cap
+    max_concurrency: int = Field(default=8, ge=1)
+    request_timeout_s: float = Field(default=60.0, gt=0)
 
     config_dir: Path = Field(default=_CONFIG_DIR)
 

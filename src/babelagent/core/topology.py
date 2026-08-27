@@ -21,8 +21,12 @@ class Topology:
     nodes: dict[str, Node] = field(default_factory=dict)
 
     def validate(self) -> Topology:
-        """Check for dangling dependencies and cycles; raise on either."""
+        """Check for an empty graph, dangling deps, duplicate deps, and cycles."""
+        if not self.nodes:
+            raise TopologyError("graph has no nodes")
         for name, node in self.nodes.items():
+            if len(set(node.after)) != len(node.after):
+                raise TopologyError(f"node {name!r} lists a duplicate dependency")
             for dep in node.after:
                 if dep not in self.nodes:
                     raise TopologyError(f"node {name!r} depends on unknown node {dep!r}")

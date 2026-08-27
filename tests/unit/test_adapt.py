@@ -74,3 +74,52 @@ async def test_graph_auto_adapts_callable():
 
     result = await Graph().node("up", str.upper).run("hi")
     assert result.output == "HI"
+
+
+# --- Review fixes: is_agent strictness, pos-only binding, awaitable return ---
+
+def test_is_agent_rejects_wrong_shape():
+    from babelagent.core.agent import is_agent
+
+    class WrongArity:
+        name = "w"
+        async def run(self):  # missing (message, ctx)
+            return None
+
+    class SyncRun:
+        name = "s"
+        def run(self, message, ctx):  # not async
+            return message
+
+    class Real:
+        name = "r"
+        async def run(self, message, ctx):
+            return message
+
+    assert is_agent(WrongArity()) is False
+    assert is_agent(SyncRun()) is False
+    assert is_agent(Real()) is True
+
+
+def test_bind_payload_pos_only_no_broken_spread():
+    import inspect
+
+    from babelagent.adapters.base import bind_payload
+
+    def f(a, /, b):  # a is positional-only required
+        return (a, b)
+
+    args, kwargs = bind_payload({"b": 2}, inspect.signature(f))
+    assert kwargs == {}  # never attempts fn(**{"b":2}) which would TypeError
+
+
+async def test_callable_returning_awaitable_is_awaited():
+    async def inner(x):
+        return x * 2
+
+    def outer(x):
+        return inner(x)  # a sync fn that RETURNS a coroutine
+
+    agent = adapt(outer)
+    out = await _run(agent, 5)
+    assert out.payload == 10  # the coroutine was awaited, not passed through

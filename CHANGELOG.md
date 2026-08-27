@@ -3,21 +3,37 @@
 All notable changes to Babelagent are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); this project uses semantic versioning.
 
-## [Unreleased]
+## [0.1.1] — 2026-08-27
 
-### Fixed (code-review follow-ups)
-- **Join input shape is now stable (behavioural contract).** A node with one declared upstream always
-  receives its message unwrapped; a node with **two or more** declared upstreams always receives a dict
-  keyed by the surviving upstream names — even under `k_of_n` when only one survived. Previously the
-  type flipped between a bare value and a dict depending on which sibling flaked. `Result.output`
-  follows the same rule (by declared-terminal count). Pinned by tests both ways.
-- **Cancellation no longer orphans tasks.** `execute()` now cancels and awaits in-flight node tasks in
-  a `finally`, so a cancelled run or a disconnected REST client delivers `CancelledError` to
-  cooperative agents instead of leaking them.
-- Corrected the scheduler's concurrency comment (the semaphore bounds concurrent *execution*, not task
-  creation) and documented that the run guillotine is opt-in for direct library calls (always on for
-  REST). Documented that entry-point adapter plugins run code and take dispatch priority
-  (`BABELAGENT_NO_PLUGINS=1` to disable).
+### Fixed — behavioural contracts (external code review + a 4-way adversarial repo review)
+- **Join / result input shape is stable.** One declared upstream → unwrapped; two or more → a dict
+  keyed by node name. The type never flips based on which branch survived. Pinned both ways.
+- **`verdict` no longer hides a tolerated crash.** A run where a non-terminal branch raised but a
+  `k_of_n`/`optional` barrier absorbed it now reports `verdict="warn"` (with `ok=True`), never a clean
+  `pass`. The crashed node is in `result.trace`.
+- **`optional` barrier skips when no upstream survives** (instead of running the node with `{}`/`None`).
+- **Cancellation no longer orphans tasks** — in-flight nodes are cancelled (and briefly awaited) when a
+  run is cancelled or a REST client disconnects; the cleanup is time-bounded so a cancellation-
+  swallowing agent can't defeat the guillotine.
+- **Deterministic trace order** for siblings completing in the same event-loop wake; **uniform trace
+  record schema** (skipped/timeout rows carry the same keys) so REST/MCP clients never `KeyError`.
+- **Duplicate dependency and empty graph are rejected** at compile with a clear `TopologyError`.
+- **`is_agent` is strict** (an async `run(message, ctx)`), so a wrong-shaped object is adapted or
+  rejected up front rather than failing cryptically mid-run.
+- **`bind_payload`** falls back to a single positional arg for callables with required positional-only
+  params (no broken `**kwargs` spread).
+- **A sync callable that returns a coroutine is awaited** (its result becomes the payload).
+- **`HttpAgent.from_openapi`**: falls back to a GET when a spec has no write operation, rejects
+  templated paths (`/items/{id}`) with a clear error, and guards a malformed `servers` entry.
+- **A2A**: handles a list JSON-RPC result and de-dups an answer echoed in both an artifact and the
+  status message.
+- **`Settings`** rejects nonsensical values (non-positive timeout/body/concurrency, out-of-range port).
+- `LLM` is now importable from the top level; the unwired `inspect <file>` argument was removed.
+- Corrected the scheduler concurrency comment; documented the opt-in guillotine, the plugin dispatch
+  priority (`BABELAGENT_NO_PLUGINS=1`), the join/tolerated-branch contract, and the `adapt()` A2A step.
+- +30 tests (107 total).
+
+## [0.1.0] — 2026-08-27
 
 ### Security
 - Completed the full security cadence over the REST / MCP / A2A / HTTP surface: a 3-surface audit and
@@ -72,4 +88,5 @@ All notable changes to Babelagent are documented here. Format follows
   and 1.x (`FastMCP`).
 - Key-free `babelagent demo`: a broken agent gated to FAIL, then a fixed one producing a PASS result.
 
-[Unreleased]: https://example.invalid/babelagent/compare
+[0.1.1]: https://github.com/amitpatole/babelagent/compare/v0.1.0...v0.1.1
+[0.1.0]: https://github.com/amitpatole/babelagent/releases/tag/v0.1.0

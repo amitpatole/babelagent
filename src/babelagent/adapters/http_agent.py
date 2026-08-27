@@ -216,11 +216,17 @@ class HttpAgent:
         """
         doc = _load_openapi(spec, allow_private=allow_private)
         servers = doc.get("servers") or []
-        resolved_base = base_url or (servers[0].get("url") if servers else None)
+        first_server = servers[0] if servers and isinstance(servers[0], dict) else None
+        resolved_base = base_url or (first_server.get("url") if first_server else None)
         if not resolved_base:
-            raise AdapterError("OpenAPI spec has no server URL; pass base_url=")
+            raise AdapterError("OpenAPI spec has no usable server URL; pass base_url=")
 
         method, path, op_id = _select_operation(doc, operation_id)
+        if "{" in path:
+            raise AdapterError(
+                f"OpenAPI path {path!r} is templated; path parameters are not "
+                f"supported (select a non-templated operation or pass a full URL)"
+            )
         full_url = resolved_base.rstrip("/") + "/" + path.lstrip("/")
         return cls(
             full_url,
@@ -260,6 +266,7 @@ def _select_operation(
     paths = doc.get("paths") or {}
     write_methods = ("post", "put", "patch")
     first_write: tuple[str, str, str] | None = None
+    first_any: tuple[str, str, str] | None = None
     for path, item in paths.items():
         if not isinstance(item, dict):
             continue
@@ -271,8 +278,12 @@ def _select_operation(
                 return method.upper(), path, op_id
             if first_write is None and method.lower() in write_methods:
                 first_write = (method.upper(), path, op_id)
+            if first_any is None:
+                first_any = (method.upper(), path, op_id)
     if operation_id:
         raise AdapterError(f"operationId {operation_id!r} not found in OpenAPI spec")
-    if first_write:
-        return first_write
-    raise AdapterError("OpenAPI spec has no usable POST/PUT/PATCH operation")
+    # Prefer a write operation; otherwise fall back to any (e.g. a GET-only spec).
+    selected = first_write or first_any
+    if selected:
+        return selected
+    raise AdapterError("OpenAPI spec has no usable operation")
