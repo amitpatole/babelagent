@@ -38,9 +38,10 @@ You never imported an `Agent` class. `adapt()` wrapped each callable for you. Se
 
 Pass `after=[...]` and you are drawing a graph. Independent nodes run concurrently.
 
-**Input shape (a contract):** a node with **one** declared upstream receives that message unwrapped (a
-linear hand-off); a node with **two or more** declared upstreams receives a dict keyed by the upstream
-node names. The type never flips based on which branch ran, so a join agent's input is stable.
+**Input shape (a contract):** a `.join()` **always** receives a dict keyed by the (surviving) upstream
+node names, even for a single upstream, because it is an explicit fan-in. A plain `.node()` with one
+declared upstream receives that message unwrapped (a linear hand-off); with two or more it also gets
+the keyed dict. The type never flips based on which branch ran, so a join agent's input is stable.
 
 ```python
 g = Graph()

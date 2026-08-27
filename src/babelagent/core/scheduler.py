@@ -129,20 +129,21 @@ class _Run:
 
     # --- input gathering --------------------------------------------------
     def gather_input(self, name: str) -> Message:
-        # The input SHAPE is decided by the number of DECLARED upstreams, not by
-        # how many survived. A node with one declared upstream always receives
-        # that message unwrapped (a linear chain); a node with two or more
-        # declared upstreams (a join) ALWAYS receives a dict keyed by the
-        # surviving upstream names — even under k_of_n when only one survived.
-        # This keeps a join agent's input type stable; it inspects which keys
-        # are present, but the type never flips between a bare value and a dict.
+        # Input SHAPE is a stable contract, decided by the node kind + the number
+        # of DECLARED upstreams (never by how many survived):
+        #   * a `.join()` node, or any node with >= 2 declared upstreams, ALWAYS
+        #     receives a dict keyed by the surviving upstream names (even under
+        #     k_of_n when only one survived);
+        #   * a plain node with one declared upstream receives that message
+        #     unwrapped (a linear hand-off).
+        # So a join agent's input type never flips between a bare value and a dict.
         node = self.topo.nodes[name]
         if not node.after:
             return self.initial
         contributing = [
             u for u in node.after if self.states[u] is NodeState.DONE and u in self.outputs
         ]
-        if len(node.after) == 1:
+        if len(node.after) == 1 and not node.join:
             return self.outputs[contributing[0]] if contributing else Message(payload=None)
         merged_payload = {u: self.outputs[u].payload for u in contributing}
         merged_meta: dict[str, Any] = {}

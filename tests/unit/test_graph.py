@@ -121,7 +121,22 @@ async def test_identity_join_default_agent():
     g.node("b", lambda n: n + 2, after=["a"])
     g.join("end", after=["b"])  # default IdentityAgent
     result = await g.run(0)
-    assert result.output == 3
+    # A join ALWAYS keys by upstream name, even for a single upstream.
+    assert result.output == {"b": 3}
+
+
+async def test_single_upstream_join_is_a_dict():
+    g = Graph()
+    g.node("src", lambda n: n)
+    g.join("j", after=["src"], agent=lambda d: d)  # one upstream, still a dict
+    result = await g.run(7)
+    assert result.output == {"src": 7}
+
+
+async def test_plain_single_upstream_node_stays_unwrapped():
+    # A .node() (not a join) with one upstream still receives the bare value.
+    result = await Graph().node("a", lambda n: n + 1).node("b", lambda n: n * 2).run(2)
+    assert result.output == 6  # (2+1)*2, unwrapped hand-off, not a dict
 
 
 def test_duplicate_node_rejected():

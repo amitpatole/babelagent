@@ -3,6 +3,13 @@
 All notable changes to Babelagent are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); this project uses semantic versioning.
 
+## [0.1.2] — 2026-08-27
+
+### Changed
+- **`.join()` always hands its agent a dict** keyed by the (surviving) upstream node names, even for a
+  single upstream, since a join is an explicit fan-in. A plain `.node()` keeps the prior rule (one
+  upstream unwrapped, two or more keyed). This makes a join agent's input shape fully stable.
+
 ## [0.1.1] — 2026-08-27
 
 ### Fixed — behavioural contracts (external code review + a 4-way adversarial repo review)
@@ -88,5 +95,6 @@ All notable changes to Babelagent are documented here. Format follows
   and 1.x (`FastMCP`).
 - Key-free `babelagent demo`: a broken agent gated to FAIL, then a fixed one producing a PASS result.
 
+[0.1.2]: https://github.com/amitpatole/babelagent/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/amitpatole/babelagent/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/amitpatole/babelagent/releases/tag/v0.1.0

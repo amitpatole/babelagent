@@ -49,3 +49,4 @@ class Node:
     timeout_s: float | None = None
     after: list[str] = field(default_factory=list)
     barrier: BarrierPolicy = field(default_factory=BarrierPolicy)
+    join: bool = False  # explicit fan-in: always receives a dict keyed by upstream

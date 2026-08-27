@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "babelagent"
-version = "0.1.1"
+version = "0.1.2"
 description = "The Babel that lets AI agents understand each other: a neutral layer where heterogeneous agents (callables, HTTP/OpenAPI, MCP, framework agents, LLMs) share one interface, collaborate (A2A), and get graded at each hop."
 readme = "README.md"
 requires-python = ">=3.11"

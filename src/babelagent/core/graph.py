@@ -103,8 +103,12 @@ class Graph:
         k: int | None = None,
         **kwargs: Any,
     ) -> Graph:
-        """Explicit fan-in node. Defaults to a pass-through :class:`IdentityAgent`."""
-        return self.node(
+        """Explicit fan-in node. Defaults to a pass-through :class:`IdentityAgent`.
+
+        A join ALWAYS hands its agent a dict keyed by the (surviving) upstream
+        node names, even for a single upstream, so the input shape is stable.
+        """
+        self.node(
             name,
             agent if agent is not None else IdentityAgent(name),
             after=after,
@@ -112,6 +116,8 @@ class Graph:
             k=k,
             **kwargs,
         )
+        self._nodes[name].join = True  # mark as an explicit fan-in
+        return self
 
     def compile(self) -> CompiledGraph:
         topo = Topology(nodes=dict(self._nodes)).validate()
