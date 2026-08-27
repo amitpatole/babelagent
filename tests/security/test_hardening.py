@@ -23,6 +23,11 @@ from babelagent.core.errors import AdapterError
         "http://0.0.0.0/",                            # unspecified
         "http://[::1]/",                              # ipv6 loopback
         "http://224.0.0.1/",                          # multicast
+        "http://[64:ff9b::a9fe:a9fe]/",               # NAT64 -> 169.254.169.254 (round-1 R1-1)
+        "http://[64:ff9b::7f00:1]/",                  # NAT64 -> 127.0.0.1
+        "http://[2002:a9fe:a9fe::]/",                 # 6to4 -> 169.254.169.254
+        "http://[::a9fe:a9fe]/",                      # IPv4-compatible -> 169.254.169.254
+        "http://[64:ff9b::0a00:5]/",                  # NAT64 -> 10.0.0.5 (private)
     ],
 )
 def test_guard_url_blocks_internal(url):
@@ -108,7 +113,7 @@ def test_rest_trace_redacts_exception_message():
         raise RuntimeError("SENSITIVE_INTERNAL_PATH=/etc/secret")
 
     app = build_app(Graph().node("boom", boom), settings=Settings())
-    client = TestClient(app)
+    client = TestClient(app, base_url="http://127.0.0.1")
     r = client.post("/run", json={"payload": "x"})
     assert r.status_code == 200
     body = r.json()
@@ -143,7 +148,7 @@ def test_rest_rejects_bad_deadline(bad):
     from babelagent.config import Settings
     from babelagent.io.rest import build_app
 
-    client = TestClient(build_app(Graph().node("id", lambda x: x), settings=Settings()))
+    client = TestClient(build_app(Graph().node("id", lambda x: x), settings=Settings()), base_url="http://127.0.0.1")
     r = client.post("/run", json={"payload": "x", "deadline_s": bad})
     assert r.status_code == 400
 
@@ -156,7 +161,8 @@ def test_rest_clamps_huge_deadline():
     from babelagent.io.rest import build_app
 
     client = TestClient(
-        build_app(Graph().node("id", lambda x: x), settings=Settings(request_timeout_s=5.0))
+        build_app(Graph().node("id", lambda x: x), settings=Settings(request_timeout_s=5.0)),
+        base_url="http://127.0.0.1",
     )
     r = client.post("/run", json={"payload": "hi", "deadline_s": 1e18})
     assert r.status_code == 200  # accepted but clamped to the server ceiling
@@ -174,3 +180,64 @@ def test_plugin_discovery_opt_out(monkeypatch):
     monkeypatch.setattr(auto, "register_adapter", lambda *a, **k: loaded.append(a[0]))
     auto._load_entrypoint_adapters()
     assert loaded == []  # discovery skipped, no plugin code enumerated
+
+
+# --- Round 1: bind_payload kwargs-injection (R1-2) --------------------------
+
+def test_bind_payload_blocks_kwarg_injection():
+    import inspect
+
+    from babelagent.adapters.base import bind_payload
+
+    def transfer(amount, to, *, admin=False):
+        return (amount, to, admin)
+
+    sig = inspect.signature(transfer)
+    # Malicious upstream output tries to flip the admin flag -> must NOT spread.
+    args, kwargs = bind_payload({"amount": 1, "to": "x", "admin": True}, sig)
+    assert kwargs == {}
+    assert args == ({"amount": 1, "to": "x", "admin": True},)
+    # Legit dict matching exactly the required params still spreads.
+    args2, kwargs2 = bind_payload({"amount": 1, "to": "x"}, sig)
+    assert args2 == () and kwargs2 == {"amount": 1, "to": "x"}
+
+
+def test_bind_payload_never_spreads_into_var_kw():
+    import inspect
+
+    from babelagent.adapters.base import bind_payload
+
+    def sink(a, **kwargs):
+        return kwargs
+
+    sig = inspect.signature(sink)
+    args, kwargs = bind_payload({"a": 1, "evil": "x"}, sig)
+    # a single positional; nothing injected wholesale into **kwargs
+    assert kwargs == {} and args == ({"a": 1, "evil": "x"},)
+
+
+# --- Round 1: _safe bounds wide / shared-reference output (R1-3) ------------
+
+def test_safe_bounds_wide_shared_output():
+    from babelagent.io.rest import _safe
+
+    level = [1, 2, 3]
+    for _ in range(40):  # 2**40 visits without a budget -> would hang
+        level = [level, level]
+    out = _safe(level)  # must return promptly via the node budget
+    assert "truncated" in repr(out)
+
+
+# --- Round 1: REST Host check defeats browser DNS-rebind (R1-4) --------------
+
+def test_rest_rejects_foreign_host():
+    pytest.importorskip("fastapi")
+    from fastapi.testclient import TestClient
+
+    from babelagent.config import Settings
+    from babelagent.io.rest import build_app
+
+    app = build_app(Graph().node("id", lambda x: x), settings=Settings())
+    client = TestClient(app, base_url="http://attacker.example")
+    assert client.get("/health").status_code == 200          # health is open
+    assert client.post("/run", json={"payload": "x"}).status_code == 403  # rebind blocked

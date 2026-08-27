@@ -18,7 +18,7 @@ import httpx
 from ..core.agent import Context
 from ..core.errors import AdapterError
 from ..core.message import Message
-from .http_agent import MAX_RESPONSE_BYTES, _read_capped, guard_url
+from .http_agent import MAX_RESPONSE_BYTES, _guarded_client, _read_capped, guard_url
 
 # Agent Card discovery paths, newest first (the A2A spec renamed the file).
 _CARD_PATHS = ("/.well-known/agent-card.json", "/.well-known/agent.json")
@@ -64,7 +64,7 @@ class A2AAgent:
             },
         }
         guard_url(self.url, allow_private=self.allow_private)  # re-validate (TOCTOU)
-        async with httpx.AsyncClient(timeout=self.timeout, follow_redirects=False) as client:
+        async with _guarded_client(allow_private=self.allow_private, timeout=self.timeout) as client:
             async with client.stream("POST", self.url, json=request) as resp:
                 resp.raise_for_status()
                 raw = await _read_capped(resp)
@@ -124,7 +124,7 @@ def _join_parts(parts: Any) -> str:
 
 async def _fetch_agent_card(base_url: str, *, allow_private: bool) -> dict[str, Any]:
     base = base_url.rstrip("/")
-    async with httpx.AsyncClient(timeout=15.0, follow_redirects=False) as client:
+    async with _guarded_client(allow_private=allow_private, timeout=15.0) as client:
         for path in _CARD_PATHS:
             url = guard_url(base + path, allow_private=allow_private)
             try:

@@ -15,7 +15,8 @@ from babelagent.io.rest import build_app  # noqa: E402
 
 def _client(**settings_kwargs) -> TestClient:
     app = build_app(build_fixed(), settings=Settings(**settings_kwargs))
-    return TestClient(app)
+    # loopback Host so the anti-DNS-rebind Host check admits the request
+    return TestClient(app, base_url="http://127.0.0.1")
 
 
 def test_health_no_auth():

@@ -30,11 +30,63 @@ _ALLOWED_SCHEMES = {"http", "https"}
 MAX_RESPONSE_BYTES = 16 * 1024 * 1024
 
 
+_NAT64 = (ipaddress.ip_network("64:ff9b::/96"), ipaddress.ip_network("64:ff9b:1::/48"))
+_SIXTOFOUR = ipaddress.ip_network("2002::/16")
+_TEREDO = ipaddress.ip_network("2001::/32")
+
+
+def _embedded_ipv4(ip: ipaddress.IPv6Address) -> ipaddress.IPv4Address | None:
+    """Extract the IPv4 an IPv6 address translates/tunnels to, if any.
+
+    Covers IPv4-mapped, IPv4-compatible, NAT64, 6to4, and Teredo, all of which
+    can smuggle an internal IPv4 (e.g. 169.254.169.254) past an is_global check.
+    """
+    if ip.ipv4_mapped is not None:
+        return ip.ipv4_mapped
+    v = int(ip)
+    if ip in _NAT64[0] or ip in _NAT64[1]:
+        return ipaddress.IPv4Address(v & 0xFFFFFFFF)
+    if ip in _SIXTOFOUR:
+        return ipaddress.IPv4Address((v >> 80) & 0xFFFFFFFF)
+    if ip in _TEREDO:
+        return ipaddress.IPv4Address((v & 0xFFFFFFFF) ^ 0xFFFFFFFF)
+    if v >> 32 == 0 and v > 1:  # IPv4-compatible ::a.b.c.d (deprecated)
+        return ipaddress.IPv4Address(v & 0xFFFFFFFF)
+    return None
+
+
 def _blocked_ip(ip: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
     """True if *ip* must not be dialed (SSRF): anything not public unicast."""
-    if isinstance(ip, ipaddress.IPv6Address) and ip.ipv4_mapped is not None:
-        ip = ip.ipv4_mapped  # ::ffff:169.254.169.254 -> evaluate as the IPv4
+    if isinstance(ip, ipaddress.IPv6Address):
+        embedded = _embedded_ipv4(ip)
+        if embedded is not None:
+            ip = embedded  # evaluate the smuggled IPv4 instead
     return (not ip.is_global) or ip.is_multicast
+
+
+class _GuardTransport(httpx.AsyncHTTPTransport):
+    """Re-validates the target immediately before httpx connects (defense in depth).
+
+    Shrinks the resolve-to-connect TOCTOU window and re-guards any redirect
+    target. A residual sub-request DNS-rebind race remains (documented); for
+    fully untrusted targets, front outbound calls with an egress allowlist.
+    """
+
+    def __init__(self, *args: Any, allow_private: bool = False, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self._allow_private = allow_private
+
+    async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
+        guard_url(str(request.url), allow_private=self._allow_private)
+        return await super().handle_async_request(request)
+
+
+def _guarded_client(*, allow_private: bool, timeout: float) -> httpx.AsyncClient:
+    return httpx.AsyncClient(
+        timeout=timeout,
+        follow_redirects=False,
+        transport=_GuardTransport(allow_private=allow_private),
+    )
 
 
 def guard_url(url: str, *, allow_private: bool = False) -> str:
@@ -107,7 +159,7 @@ class HttpAgent:
         guard_url(self.url, allow_private=self.allow_private)
         params = payload if (self.method == "GET" and isinstance(payload, dict)) else None
         json_body = None if self.method == "GET" else payload
-        async with httpx.AsyncClient(timeout=self.timeout, follow_redirects=False) as client:
+        async with _guarded_client(allow_private=self.allow_private, timeout=self.timeout) as client:
             async with client.stream(
                 self.method, self.url, params=params, json=json_body, headers=self.headers
             ) as resp:

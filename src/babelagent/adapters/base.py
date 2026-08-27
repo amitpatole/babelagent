@@ -8,14 +8,22 @@ from typing import Any
 
 
 def bind_payload(payload: Any, sig: inspect.Signature | None) -> tuple[tuple, dict]:
-    """Decide how to pass a part's *payload* into a callable.
+    """Decide how to pass a message's *payload* into a callable.
 
     Deterministic rules:
 
     * 0 or 1 parameter  → ``fn(payload)``
-    * dict payload whose keys the callable accepts → ``fn(**payload)``
+    * dict payload whose keys EXACTLY match the callable's *required* params
+      → ``fn(**payload)``
     * list/tuple payload with a multi-arg callable  → ``fn(*payload)``
     * otherwise                                     → ``fn(payload)``
+
+    Security note: a payload can come from an untrusted upstream node (e.g. a
+    remote A2A/HTTP agent's output). To prevent that output from injecting
+    keyword arguments into optional / keyword-only "flag" parameters
+    (``admin=True``, ``dry_run=False``, ...) or wholesale into ``**kwargs``, the
+    dict-spread fires ONLY when the payload keys are exactly the callable's
+    required parameters. Anything else falls back to a single positional arg.
     """
     if sig is None:
         return (payload,), {}
@@ -30,16 +38,18 @@ def bind_payload(payload: Any, sig: inspect.Signature | None) -> tuple[tuple, di
             inspect.Parameter.KEYWORD_ONLY,
         )
     ]
-    has_var_kw = any(
-        p.kind is inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values()
-    )
 
     if len(params) <= 1:
         return (payload,), {}
 
     if isinstance(payload, dict):
-        accepted = {p.name for p in params}
-        if has_var_kw or set(payload) <= accepted:
+        required = {
+            p.name
+            for p in params
+            if p.default is inspect.Parameter.empty
+            and p.kind is not inspect.Parameter.POSITIONAL_ONLY
+        }
+        if required and set(payload) == required:
             return (), dict(payload)
 
     if isinstance(payload, (list, tuple)):

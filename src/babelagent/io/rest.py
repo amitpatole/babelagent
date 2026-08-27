@@ -43,37 +43,45 @@ def _is_loopback(host: str) -> bool:
 
 
 _MAX_SAFE_DEPTH = 64
+_MAX_SAFE_NODES = 100_000
+_MAX_REASON_LEN = 200
 
 
-def _safe(value: Any, _depth: int = 0) -> Any:
+def _safe(value: Any, _depth: int = 0, _budget: list[int] | None = None) -> Any:
     """Keep JSON-friendly values as-is; stringify anything else.
 
-    Depth-bounded so an adversarially deep (or cyclic) agent output cannot
-    exhaust the stack when it is serialized for the response.
+    Bounded by BOTH depth and a total-node budget, so neither a deeply nested
+    nor an adversarially wide / shared-reference agent output (which could fan
+    out to 2**N visits) can exhaust the stack or CPU when serialized.
     """
-    if _depth >= _MAX_SAFE_DEPTH:
-        return "...(truncated: max depth)"
+    if _budget is None:
+        _budget = [_MAX_SAFE_NODES]
+    if _depth >= _MAX_SAFE_DEPTH or _budget[0] <= 0:
+        return "...(truncated)"
+    _budget[0] -= 1
     if isinstance(value, (str, int, float, bool, type(None))):
         return value
     if isinstance(value, dict):
-        return {str(k): _safe(v, _depth + 1) for k, v in value.items()}
+        return {str(k): _safe(v, _depth + 1, _budget) for k, v in value.items()}
     if isinstance(value, (list, tuple)):
-        return [_safe(v, _depth + 1) for v in value]
+        return [_safe(v, _depth + 1, _budget) for v in value]
     return str(value)
 
 
 def _public_trace(trace: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Redact internal exception text from a trace before returning it to a caller.
+    """Redact internal detail from a trace before returning it to a network caller.
 
-    Gate reasons (author-written grade text) are kept; raw exception messages
-    (which may carry internal paths, upstream URLs, or SDK error detail) are
-    replaced with a generic marker. See scheduler's ``errored`` flag.
+    Raw exception messages (``errored``) are replaced with a generic marker.
+    Gate reasons (author-written) are size-limited, since an author check may
+    embed upstream output into the reason. See scheduler's ``errored`` flag.
     """
     out = []
     for rec in trace:
         rec = dict(rec)
         if rec.pop("errored", False):
             rec["reason"] = "error"
+        elif isinstance(rec.get("reason"), str) and len(rec["reason"]) > _MAX_REASON_LEN:
+            rec["reason"] = rec["reason"][:_MAX_REASON_LEN] + "…"
         out.append(rec)
     return out
 
@@ -90,6 +98,9 @@ def build_app(graph: Any, *, settings: Settings | None = None):  # type: ignore[
     compiled = _compiled(graph)
     token = settings.api_token
     limiter = anyio.Semaphore(max(1, settings.max_concurrency))
+    # On a loopback (zero-config) bind, pin the Host header to loopback so a
+    # browser DNS-rebind (attacker.com -> 127.0.0.1) cannot drive /run or /graph.
+    loopback_only = _is_loopback(settings.host)
 
     app = FastAPI(title="Babelagent", docs_url=None, redoc_url=None)
 
@@ -99,6 +110,16 @@ def build_app(graph: Any, *, settings: Settings | None = None):  # type: ignore[
         expected = f"Bearer {token}"
         if not authorization or not hmac.compare_digest(authorization, expected):
             raise HTTPException(status_code=401, detail="unauthorized")
+
+    async def require_host(host: str | None = Header(default=None)) -> None:
+        if not loopback_only:
+            return  # behind a proxy the Host is the public name; token gates access
+        raw = host or ""
+        hostname = raw[1:].split("]")[0] if raw.startswith("[") else raw.split(":")[0]
+        if not (hostname in ("localhost", settings.host) or _is_loopback(hostname)):
+            raise HTTPException(status_code=403, detail="host not allowed")
+
+    guard = [Depends(require_auth), Depends(require_host)]
 
     async def _read_capped(request: Request) -> bytes:
         cap = settings.max_body_bytes
@@ -120,11 +141,11 @@ def build_app(graph: Any, *, settings: Settings | None = None):  # type: ignore[
     async def health() -> dict[str, Any]:
         return {"ok": True, "service": "babelagent"}
 
-    @app.get("/graph", dependencies=[Depends(require_auth)])
+    @app.get("/graph", dependencies=guard)
     async def graph_spec() -> dict[str, Any]:
         return compiled.spec()
 
-    @app.post("/run", dependencies=[Depends(require_auth)])
+    @app.post("/run", dependencies=guard)
     async def run(request: Request) -> dict[str, Any]:
         import json
 
