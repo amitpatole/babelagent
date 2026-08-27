@@ -5,6 +5,16 @@ All notable changes to Babelagent are documented here. Format follows
 
 ## [Unreleased]
 
+### Security
+- Completed the full security cadence over the REST / MCP / A2A / HTTP surface: a 3-surface audit and
+  **four adversarial red-team rounds** (final round found nothing new). Fixed and regression-pinned:
+  attacker-controlled `deadline_s` (DoS), SSRF (allowlist + NAT64/6to4/Teredo normalization, no
+  redirects, response caps, connect-time re-guard), keyword/positional argument injection from
+  untrusted upstream output, `_safe` depth+width DoS, trace exception-message leakage, REST DNS-rebind
+  (Host pinning), slowloris (body + connection limits), and a hard wall-clock guillotine defeating
+  cancellation-swallowing agents. See `docs/SECURITY.md` for the posture, deployment guidance, and the
+  documented residuals. 22 security regression tests in `tests/security/`.
+
 ### Renamed
 - Project renamed from the working title **BYOA** to **Babelagent** (import + distribution name
   `babelagent`). The framing is now a neutral communication layer that lets heterogeneous agents talk

@@ -155,18 +155,32 @@ def test_rest_rejects_bad_deadline(bad):
 
 def test_rest_clamps_huge_deadline():
     pytest.importorskip("fastapi")
+    import time
+
     from fastapi.testclient import TestClient
 
     from babelagent.config import Settings
     from babelagent.io.rest import build_app
 
+    async def slow(x):
+        import asyncio
+
+        await asyncio.sleep(5)  # far longer than the server ceiling
+        return x
+
+    # Ceiling 0.3s; a caller passing a huge deadline must NOT be able to raise it.
+    # Load-bearing: if the min(deadline, ceiling) clamp were reverted, the node
+    # would sleep 5s and succeed; with the clamp it times out fast and fails.
     client = TestClient(
-        build_app(Graph().node("id", lambda x: x), settings=Settings(request_timeout_s=5.0)),
+        build_app(Graph().node("slow", slow), settings=Settings(request_timeout_s=0.3)),
         base_url="http://127.0.0.1",
     )
+    start = time.monotonic()
     r = client.post("/run", json={"payload": "hi", "deadline_s": 1e18})
-    assert r.status_code == 200  # accepted but clamped to the server ceiling
-    assert r.json()["output"] == "hi"
+    elapsed = time.monotonic() - start
+    assert r.status_code == 200
+    assert r.json()["ok"] is False       # node exceeded the CLAMPED deadline
+    assert elapsed < 3.0                  # bounded by the ceiling, not the 5s node
 
 
 # --- Plugin discovery opt-out (code F4) -------------------------------------
