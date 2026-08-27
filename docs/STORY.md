@@ -220,16 +220,16 @@ If someone stops you in a hallway: BYOA is a neutral assembly line for agents. Y
 
 ## 12. Glossary
 
-**Factory** — the builder you use to assemble a line; offers both the linear chaining sugar and the explicit dependency (DAG) API.
-**Line** — a compiled, validated assembly line, ready to run parts.
-**Station** — one node on the line: an agent plus an optional quality check and gate.
-**Agent** — the uniform worker interface; anything with a `name` and an async `run(part, ctx) -> part`.
-**adapt()** — the on-the-fly adapter creator that turns any brought object into an Agent.
-**Part** — the envelope travelling down the belt: a payload plus accumulating metadata.
-**Product** — what the line produces: the final output, an ok flag, an overall verdict, and a full trace.
-**Barrier** — the fan-in policy for a node with several upstreams: all, k_of_n, or optional.
-**Verdict / Result / Check / GateMode** — BYOA's native quality-control types: the judgement, the judgement-with-reason, the function that judges, and the rule for what a judgement does to the flow.
-**Registry / entry points** — how new adapters are added, in-process or from another package, without modifying BYOA.
+**Factory.** The builder you use to assemble a line; offers both the linear chaining sugar and the explicit dependency (DAG) API.
+**Line.** A compiled, validated assembly line, ready to run parts.
+**Station.** One node on the line: an agent plus an optional quality check and gate.
+**Agent.** The uniform worker interface; anything with a `name` and an async `run(part, ctx) -> part`.
+**adapt().** The on-the-fly adapter creator that turns any brought object into an Agent.
+**Part.** The envelope travelling down the belt: a payload plus accumulating metadata.
+**Product.** What the line produces: the final output, an ok flag, an overall verdict, and a full trace.
+**Barrier.** The fan-in policy for a node with several upstreams: all, k_of_n, or optional.
+**Verdict / Result / Check / GateMode.** BYOA's native quality-control types: the judgement, the judgement-with-reason, the function that judges, and the rule for what a judgement does to the flow.
+**Registry / entry points.** How new adapters are added, in-process or from another package, without modifying BYOA.
 
 ---
 
