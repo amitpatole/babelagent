@@ -142,6 +142,16 @@ async def _read_capped(resp: httpx.Response, cap: int = MAX_RESPONSE_BYTES) -> b
     return bytes(body)
 
 
+def _read_capped_sync(resp: httpx.Response, cap: int = MAX_RESPONSE_BYTES) -> bytes:
+    """Sync counterpart of :func:`_read_capped`."""
+    body = bytearray()
+    for chunk in resp.iter_bytes():
+        body.extend(chunk)
+        if len(body) > cap:
+            raise AdapterError(f"upstream response exceeds size cap ({cap} bytes)")
+    return bytes(body)
+
+
 def _decode_body(raw: bytes) -> Any:
     """JSON-decode a response body, falling back to text."""
     import json
@@ -226,13 +236,17 @@ def _load_openapi(spec: Any, *, allow_private: bool) -> dict[str, Any]:
         return spec
     if isinstance(spec, str):
         if spec.startswith(("http://", "https://")):
+            import json
+
             url = guard_url(spec, allow_private=allow_private)
             with _guarded_client_sync(allow_private=allow_private, timeout=30.0) as client:
-                resp = client.get(url)
-                resp.raise_for_status()
-                if len(resp.content) > MAX_RESPONSE_BYTES:
-                    raise AdapterError("OpenAPI document exceeds size cap")
-                return resp.json()
+                with client.stream("GET", url) as resp:
+                    resp.raise_for_status()
+                    raw = _read_capped_sync(resp)  # cap before buffering
+            doc = json.loads(raw)
+            if not isinstance(doc, dict):
+                raise AdapterError("OpenAPI document is not a JSON object")
+            return doc
         import json
 
         with open(spec, encoding="utf-8") as fh:

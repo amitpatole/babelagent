@@ -133,7 +133,9 @@ def build_app(graph: Any, *, settings: Settings | None = None):  # type: ignore[
                 raise HTTPException(status_code=400, detail="bad content-length") from exc
         body = bytearray()
         try:
-            # Idle/slowloris bound: a trickled body cannot hold a slot forever.
+            # Body-phase idle bound: a trickled *body* cannot hold a slot forever.
+            # (The header phase is bounded by uvicorn limits + a fronting proxy;
+            # see serve().)
             with anyio.fail_after(settings.request_timeout_s):
                 async for chunk in request.stream():
                     body.extend(chunk)
@@ -212,7 +214,17 @@ def serve(
             f"refusing to bind {host!r} without an API token; set BABELAGENT_API_TOKEN "
             f"(or bind 127.0.0.1 for zero-config local use)"
         )
-    uvicorn.run(build_app(graph, settings=settings), host=host, port=port)
+    # Bound simultaneous connections and reclaim idle keep-alives. NOTE: uvicorn
+    # has no header-receive timeout, so a slow-headers Slowloris is only fully
+    # mitigated by fronting a routable deployment with a reverse proxy that
+    # enforces a header timeout (nginx client_header_timeout, ALB idle timeout).
+    uvicorn.run(
+        build_app(graph, settings=settings),
+        host=host,
+        port=port,
+        timeout_keep_alive=int(settings.request_timeout_s),
+        limit_concurrency=max(2, settings.max_concurrency * 16),
+    )
 
 
 def main() -> None:  # pragma: no cover - convenience entry for the demo graph

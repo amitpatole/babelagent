@@ -303,3 +303,32 @@ def test_rest_requires_host_on_loopback():
     # An empty Host on a loopback bind fails closed (403).
     r = client.post("/run", json={"payload": "x"}, headers={"host": ""})
     assert r.status_code == 403
+
+
+# --- Round 3: OpenAPI sync fetch is streamed + capped (R3-F2) ----------------
+
+async def test_read_capped_sync_rejects_oversize():
+    from babelagent.adapters.http_agent import _read_capped_sync
+
+    def handler(request):
+        return httpx.Response(200, content=b"x" * 500)
+
+    transport = httpx.MockTransport(handler)
+    with httpx.Client(transport=transport) as client:
+        with client.stream("GET", "http://svc/") as resp:
+            with pytest.raises(AdapterError, match="size cap"):
+                _read_capped_sync(resp, cap=100)
+
+
+# --- Round 3: serve() sets uvicorn connection/keep-alive limits (R3-F1) ------
+
+def test_serve_sets_connection_limits(monkeypatch):
+    uvicorn = pytest.importorskip("uvicorn")
+    from babelagent.io._demo_assets import build_fixed
+    from babelagent.io.rest import serve
+
+    captured: dict = {}
+    monkeypatch.setattr(uvicorn, "run", lambda *a, **k: captured.update(k))
+    serve(build_fixed(), host="127.0.0.1")
+    assert captured.get("limit_concurrency", 0) >= 2
+    assert "timeout_keep_alive" in captured
