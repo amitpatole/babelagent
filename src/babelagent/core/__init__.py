@@ -1,11 +1,11 @@
-"""Babelbridge core: the dependency-free graph engine that agents exchange messages on."""
+"""Babelagent core: the dependency-free graph engine that agents exchange messages on."""
 
 from __future__ import annotations
 
 from .agent import Agent, Context, IdentityAgent, is_agent
 from .errors import (
     AdapterError,
-    BabelbridgeError,
+    BabelagentError,
     CycleError,
     GateFailed,
     MissingDependencyError,
@@ -29,7 +29,7 @@ __all__ = [
     "Node",
     "Topology",
     "AdapterError",
-    "BabelbridgeError",
+    "BabelagentError",
     "CycleError",
     "GateFailed",
     "MissingDependencyError",

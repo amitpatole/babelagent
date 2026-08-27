@@ -1,17 +1,17 @@
-"""Exception hierarchy for Babelbridge."""
+"""Exception hierarchy for Babelagent."""
 
 from __future__ import annotations
 
 
-class BabelbridgeError(Exception):
-    """Base class for all Babelbridge errors."""
+class BabelagentError(Exception):
+    """Base class for all Babelagent errors."""
 
 
-class AdapterError(BabelbridgeError):
+class AdapterError(BabelagentError):
     """Raised when an object cannot be adapted into an Agent, or an adapter fails."""
 
 
-class TopologyError(BabelbridgeError):
+class TopologyError(BabelagentError):
     """Raised when a graph is invalid (dangling deps, duplicate nodes)."""
 
 
@@ -19,21 +19,21 @@ class CycleError(TopologyError):
     """Raised when the graph contains a cycle (not a DAG)."""
 
 
-class GateFailed(BabelbridgeError):
+class GateFailed(BabelagentError):
     """Raised (internally) when a node's quality gate blocks the exchange."""
 
 
-class NodeTimeout(BabelbridgeError):
+class NodeTimeout(BabelagentError):
     """Raised when a node exceeds its timeout or the run deadline."""
 
 
-class MissingDependencyError(BabelbridgeError):
+class MissingDependencyError(BabelagentError):
     """Raised when an optional extra is required but not installed."""
 
     def __init__(self, feature: str, extra: str) -> None:
         super().__init__(
             f"{feature} requires the optional '{extra}' extra. "
-            f"Install it with: pip install 'babelbridge[{extra}]'"
+            f"Install it with: pip install 'babelagent[{extra}]'"
         )
         self.feature = feature
         self.extra = extra

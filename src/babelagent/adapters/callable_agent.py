@@ -1,4 +1,4 @@
-"""Wrap any Python callable as an :class:`~babelbridge.core.agent.Agent`."""
+"""Wrap any Python callable as an :class:`~babelagent.core.agent.Agent`."""
 
 from __future__ import annotations
 

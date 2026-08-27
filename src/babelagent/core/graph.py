@@ -139,5 +139,5 @@ class CompiledGraph:
         return await run_topology(self.topology, message, context, concurrency=concurrency)
 
     def spec(self) -> dict[str, Any]:
-        """JSON-serializable topology (for ``babelbridge inspect``)."""
+        """JSON-serializable topology (for ``babelagent inspect``)."""
         return self.topology.topo_spec()

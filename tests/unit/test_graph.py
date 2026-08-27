@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import pytest
 
-from babelbridge import GateMode, Graph, Message, Verdict
-from babelbridge.core.agent import Context, IdentityAgent
-from babelbridge.core.grade import Grade
+from babelagent import GateMode, Graph, Message, Verdict
+from babelagent.core.agent import Context, IdentityAgent
+from babelagent.core.grade import Grade
 
 
 async def test_linear_three_nodes():
@@ -100,6 +100,6 @@ def test_duplicate_node_rejected():
 
 
 def test_identity_agent_is_agent():
-    from babelbridge import is_agent
+    from babelagent import is_agent
 
     assert is_agent(IdentityAgent())

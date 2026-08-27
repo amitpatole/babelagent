@@ -1,4 +1,4 @@
-"""``python -m babelbridge`` entry point."""
+"""``python -m babelagent`` entry point."""
 
 from .io.cli import main
 

@@ -1,6 +1,6 @@
 """Native, dependency-free quality types for optional per-node gating.
 
-Babelbridge owns its own light verdict types rather than importing an external
+Babelagent owns its own light verdict types rather than importing an external
 contract, so the base install stays dependency-free.
 """
 

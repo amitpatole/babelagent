@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import pytest
 
-from babelbridge import Graph
-from babelbridge.core.errors import CycleError, TopologyError
-from babelbridge.core.node import BarrierKind, BarrierPolicy, Node
-from babelbridge.core.topology import Topology
+from babelagent import Graph
+from babelagent.core.errors import CycleError, TopologyError
+from babelagent.core.node import BarrierKind, BarrierPolicy, Node
+from babelagent.core.topology import Topology
 
 
 class _Noop:

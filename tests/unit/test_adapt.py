@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import pytest
 
-from babelbridge import Message, adapt, register_adapter
-from babelbridge.core.agent import Context, is_agent
-from babelbridge.core.errors import AdapterError
+from babelagent import Message, adapt, register_adapter
+from babelagent.core.agent import Context, is_agent
+from babelagent.core.errors import AdapterError
 
 
 async def _run(agent, payload):
@@ -39,7 +39,7 @@ async def test_adapt_multiarg_dict_payload():
 
 
 def test_adapt_already_agent_passthrough():
-    from babelbridge.core.agent import IdentityAgent
+    from babelagent.core.agent import IdentityAgent
 
     ident = IdentityAgent("keep")
     assert adapt(ident) is ident
@@ -70,7 +70,7 @@ async def test_register_custom_adapter():
 
 
 async def test_graph_auto_adapts_callable():
-    from babelbridge import Graph
+    from babelagent import Graph
 
     result = await Graph().node("up", str.upper).run("hi")
     assert result.output == "HI"

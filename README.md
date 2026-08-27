@@ -1,23 +1,23 @@
-# Babelbridge
+# Babelagent
 
-> One common tongue for agents that were never meant to talk.
+> The Babel that lets AI agents understand each other. One shared tongue for agents that were never meant to talk.
 
 Every agent framework has its own idea of what an agent is. LangChain has Runnables with `.invoke`,
 CrewAI has Crews with `.kickoff`, AutoGen has agents with `.generate_reply`, an LLM has
 `messages.create`, a microservice has an HTTP route. None of them agree on a shape, so connecting any
 two means writing glue.
 
-Babelbridge is the neutral layer in between. You bring your own agents, whatever they are (a callable,
+Babelagent is the neutral layer in between. You bring your own agents, whatever they are (a callable,
 an HTTP/OpenAPI endpoint, an MCP tool, a framework agent, or an LLM), and it wraps each one in a single
 shared interface so they can exchange messages and collaborate on a task, **agent-to-agent (A2A)**.
 The value is not any single adapter. It is that once something is adapted, it works with everything
 else you have adapted.
 
-The headline is **`adapt()`**: hand Babelbridge almost anything and it builds the connector on the fly.
+The headline is **`adapt()`**: hand Babelagent almost anything and it builds the connector on the fly.
 
 ```python
 import asyncio
-from babelbridge import Graph
+from babelagent import Graph
 
 async def main():
     graph = (
@@ -59,21 +59,21 @@ result = await g.run(document)
 ## Install
 
 ```bash
-pip install babelbridge                 # light base (callables + HTTP)
-pip install "babelbridge[mcp]"          # MCP tools
-pip install "babelbridge[cloud]"        # Anthropic / OpenAI
-pip install "babelbridge[ollama]"       # local models
-pip install "babelbridge[frameworks]"   # LangChain / CrewAI / AutoGen
-pip install "babelbridge[serve]"        # REST service
-pip install "babelbridge[all]"
+pip install babelagent                 # light base (callables + HTTP)
+pip install "babelagent[mcp]"          # MCP tools
+pip install "babelagent[cloud]"        # Anthropic / OpenAI
+pip install "babelagent[ollama]"       # local models
+pip install "babelagent[frameworks]"   # LangChain / CrewAI / AutoGen
+pip install "babelagent[serve]"        # REST service
+pip install "babelagent[all]"
 ```
 
 ## Try it (no API key)
 
 ```bash
-babelbridge demo      # a broken agent (gated FAIL) then a fixed one (PASS)
-babelbridge doctor    # which adapter families are available
-babelbridge inspect   # print a graph's topology as JSON
+babelagent demo      # a broken agent (gated FAIL) then a fixed one (PASS)
+babelagent doctor    # which adapter families are available
+babelagent inspect   # print a graph's topology as JSON
 ```
 
 ## Status

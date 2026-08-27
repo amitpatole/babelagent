@@ -52,7 +52,7 @@ def infer_io_schema(fn: Callable[..., Any]) -> dict[str, Any]:
     """Best-effort JSON-schema hints for a callable's inputs and output.
 
     Never raises; returns ``{}`` for anything it cannot introspect. Used purely
-    for ``babelbridge inspect`` / documentation, never for execution.
+    for ``babelagent inspect`` / documentation, never for execution.
     """
     schema: dict[str, Any] = {"inputs": {}, "output": None}
     try:

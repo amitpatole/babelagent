@@ -1,4 +1,4 @@
-"""``babelbridge doctor`` — light environment diagnostics (never imports heavy deps)."""
+"""``babelagent doctor`` — light environment diagnostics (never imports heavy deps)."""
 
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ def run_checks() -> list[Check]:
     """Probe which optional adapter families are available. Zero-config."""
     from .. import __version__
 
-    checks = [Check("babelbridge", True, f"version {__version__}")]
+    checks = [Check("babelagent", True, f"version {__version__}")]
     checks.append(Check("core deps (pydantic, httpx, typer)",
                         _has("pydantic") and _has("httpx") and _has("typer"),
                         "base wheel"))
@@ -38,7 +38,7 @@ def run_checks() -> list[Check]:
     }
     for module, (label, extra) in families.items():
         present = _has(module)
-        detail = "available" if present else f"install babelbridge[{extra}]"
+        detail = "available" if present else f"install babelagent[{extra}]"
         checks.append(Check(label, present, detail))
     return checks
 

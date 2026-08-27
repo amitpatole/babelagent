@@ -1,4 +1,4 @@
-"""Babelbridge adapters: normalize anything a user brings into a uniform Agent."""
+"""Babelagent adapters: normalize anything a user brings into a uniform Agent."""
 
 from __future__ import annotations
 

@@ -1,10 +1,11 @@
-"""Babelbridge — one common tongue for agents that were never meant to talk.
+"""Babelagent — the Babel that lets AI agents understand each other.
 
-A neutral layer that lets heterogeneous agents (plain callables, HTTP/OpenAPI
-endpoints, MCP tools, framework agents, or LLMs) exchange messages and
-collaborate on a task, agent-to-agent, under one shared interface.
+A neutral layer that gives heterogeneous agents (plain callables, HTTP/OpenAPI
+endpoints, MCP tools, framework agents, or LLMs) one shared tongue, so they can
+exchange messages and collaborate on a task, agent-to-agent, and be graded at
+each hop.
 
-    from babelbridge import Graph, adapt
+    from babelagent import Graph, adapt
 
     graph = Graph().node("shout", str.upper)
     result = await graph.run("hello")   # result.output == "HELLO"
@@ -33,7 +34,7 @@ from .core import (
 )
 from .core.errors import (
     AdapterError,
-    BabelbridgeError,
+    BabelagentError,
     CycleError,
     MissingDependencyError,
     TopologyError,
@@ -60,7 +61,7 @@ __all__ = [
     "Verdict",
     "adapt",
     "register_adapter",
-    "BabelbridgeError",
+    "BabelagentError",
     "AdapterError",
     "CycleError",
     "TopologyError",
@@ -68,7 +69,7 @@ __all__ = [
 ]
 
 # adapt() and the registry live in the adapters package; expose lazily so that
-# importing babelbridge never eagerly pulls optional adapter dependencies.
+# importing babelagent never eagerly pulls optional adapter dependencies.
 _LAZY = {"adapt", "register_adapter"}
 
 

@@ -1,4 +1,4 @@
-# Post: the problem Babelbridge answers
+# Post: the problem Babelagent answers
 
 *Draft. Local only, not published. Written to read plainly, no marketing voice.*
 
@@ -6,7 +6,7 @@
 
 ## Long version
 
-**Babelbridge: one common tongue for agents that were never meant to talk.**
+**Babelagent: one common tongue for agents that were never meant to talk.**
 
 Every agent framework has its own idea of what an agent is. In LangChain it is a Runnable with `.invoke`. In CrewAI it is a Crew with `.kickoff`. In AutoGen it is an agent with `.generate_reply`. An LLM provider gives you a client and `messages.create`. A microservice gives you an HTTP route and a JSON body.
 
@@ -16,7 +16,7 @@ The frameworks do not fix this, because each one wants to be your whole world. A
 
 What has been missing is a neutral layer. Not another framework. A thin layer that sits in the middle, speaks each agent's dialect, and gives them all one shared interface, so a result can pass from any agent to any other. It can check the work along the way, so a bad output does not quietly move on. It owns very little on purpose.
 
-That is what I am building. It is called Babelbridge. You bring your own agents, whatever they are, and it wraps each one in a single shared interface so they can finally talk to each other. The value is not any single adapter. It is that once something is adapted, it works with everything else you have adapted.
+That is what I am building. It is called Babelagent. You bring your own agents, whatever they are, and it wraps each one in a single shared interface so they can finally talk to each other. The value is not any single adapter. It is that once something is adapted, it works with everything else you have adapted.
 
 More soon.
 
@@ -28,6 +28,6 @@ Every framework has its own idea of what an agent is. LangChain has `.invoke`, C
 
 The frameworks will not fix this. Each one wants to be your whole world.
 
-So I am building Babelbridge. A neutral layer that wraps any agent in one common interface, so they finally compose under one set of rules. Bring your own agents. Once something is adapted, it works with everything else you have adapted.
+So I am building Babelagent. A neutral layer that wraps any agent in one common interface, so they finally compose under one set of rules. Bring your own agents. Once something is adapted, it works with everything else you have adapted.
 
 More soon.

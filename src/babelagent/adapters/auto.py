@@ -2,8 +2,8 @@
 
 Hand it anything a user brought (a callable, an HTTP/OpenAPI URL, an MCP ref, a
 framework agent, or an already-conforming Agent) and it returns a uniform
-:class:`~babelbridge.core.agent.Agent`. Extensible: third parties register their
-own matchers via :func:`register_adapter` or the ``babelbridge.adapters``
+:class:`~babelagent.core.agent.Agent`. Extensible: third parties register their
+own matchers via :func:`register_adapter` or the ``babelagent.adapters``
 entry-point group.
 """
 
@@ -45,7 +45,7 @@ def _load_entrypoint_adapters() -> None:
     try:
         from importlib.metadata import entry_points
 
-        eps = entry_points(group="babelbridge.adapters")
+        eps = entry_points(group="babelagent.adapters")
     except Exception:  # noqa: BLE001 — discovery is best-effort
         return
     for ep in eps:
@@ -120,5 +120,5 @@ def adapt(obj: Any, *, name: str | None = None, **hints: Any) -> Agent:
     raise AdapterError(
         f"don't know how to adapt {type(obj).__name__}; bring an Agent, a callable, "
         f"an http(s) URL, an McpRef, a framework agent, or register a custom adapter "
-        f"with babelbridge.register_adapter(...)."
+        f"with babelagent.register_adapter(...)."
     )

@@ -1,4 +1,4 @@
-"""``babelbridge`` command-line interface."""
+"""``babelagent`` command-line interface."""
 
 from __future__ import annotations
 
@@ -9,14 +9,14 @@ import typer
 
 app = typer.Typer(
     add_completion=False,
-    help="Babelbridge — one common tongue for agents that were never meant to talk.",
+    help="Babelagent — one common tongue for agents that were never meant to talk.",
     no_args_is_help=True,
 )
 
 
 @app.command()
 def version() -> None:
-    """Print the installed Babelbridge version."""
+    """Print the installed Babelagent version."""
     from .. import __version__
 
     typer.echo(__version__)
@@ -27,7 +27,7 @@ def doctor() -> None:
     """Report which optional adapter families are available."""
     from .doctor import format_checks, run_checks
 
-    typer.echo("babelbridge doctor")
+    typer.echo("babelagent doctor")
     typer.echo(format_checks(run_checks()))
 
 
@@ -36,7 +36,7 @@ def demo() -> None:
     """Run a key-free demo: a broken graph (gated FAIL) then a fixed graph (PASS)."""
     from ._demo_assets import DEMO_TEXT, build_broken, build_fixed
 
-    typer.echo("Babelbridge demo — one agent, a quality gate, no API key.\n")
+    typer.echo("Babelagent demo — one agent, a quality gate, no API key.\n")
     typer.echo(f"input: {DEMO_TEXT}\n")
 
     broken = asyncio.run(build_broken().run(DEMO_TEXT))

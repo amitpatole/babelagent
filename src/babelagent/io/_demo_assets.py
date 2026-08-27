@@ -12,7 +12,7 @@ from ..core.graph import Graph
 from ..core.message import Message
 
 DEMO_TEXT = (
-    "Different agents speak different dialects, and Babelbridge gives them one "
+    "Different agents speak different dialects, and Babelagent gives them one "
     "shared tongue so they can hand work to each other and still be checked."
 )
 

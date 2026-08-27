@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from babelbridge.io._demo_assets import DEMO_TEXT, build_broken, build_fixed
+from babelagent.io._demo_assets import DEMO_TEXT, build_broken, build_fixed
 
 
 async def test_broken_graph_fails_gate():
@@ -19,8 +19,8 @@ async def test_fixed_graph_passes_and_produces():
 
 
 def test_doctor_runs():
-    from babelbridge.io.doctor import format_checks, run_checks
+    from babelagent.io.doctor import format_checks, run_checks
 
     checks = run_checks()
-    assert any(c.name == "babelbridge" and c.ok for c in checks)
+    assert any(c.name == "babelagent" and c.ok for c in checks)
     assert isinstance(format_checks(checks), str)

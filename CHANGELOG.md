@@ -1,13 +1,13 @@
 # Changelog
 
-All notable changes to Babelbridge are documented here. Format follows
+All notable changes to Babelagent are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); this project uses semantic versioning.
 
 ## [Unreleased]
 
 ### Renamed
-- Project renamed from the working title **BYOA** to **Babelbridge** (import + distribution name
-  `babelbridge`). The framing is now a neutral communication layer that lets heterogeneous agents talk
+- Project renamed from the working title **BYOA** to **Babelagent** (import + distribution name
+  `babelagent`). The framing is now a neutral communication layer that lets heterogeneous agents talk
   to each other (agent-to-agent), not a factory/assembly line.
 - API vocabulary re-themed: `Factory` → `Graph`, `Line` → `CompiledGraph`, `Blueprint` → `Topology`,
   `Station` → `Node` (merged with the old graph-node wrapper), `Part` → `Message`, `Product` →
@@ -28,10 +28,10 @@ All notable changes to Babelbridge are documented here. Format follows
   framework agents (LangChain / CrewAI / AutoGen), and LLM providers into the uniform `Agent` interface.
 - `CallableAgent`, `HttpAgent` (+ `from_openapi`, basic SSRF guard), `LLM` provider adapter (lazy,
   behind extras, defaults to the latest Claude model).
-- Extensible registry: `register_adapter(...)` and the `babelbridge.adapters` entry-point group.
+- Extensible registry: `register_adapter(...)` and the `babelagent.adapters` entry-point group.
 
 ### Added — interfaces
-- `babelbridge` CLI (Typer): `demo`, `doctor`, `inspect`, `version`.
-- Key-free `babelbridge demo`: a broken agent gated to FAIL, then a fixed one producing a PASS result.
+- `babelagent` CLI (Typer): `demo`, `doctor`, `inspect`, `version`.
+- Key-free `babelagent demo`: a broken agent gated to FAIL, then a fixed one producing a PASS result.
 
-[Unreleased]: https://example.invalid/babelbridge/compare
+[Unreleased]: https://example.invalid/babelagent/compare

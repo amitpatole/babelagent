@@ -1,4 +1,4 @@
-"""Runtime settings, loaded from env (``BABELBRIDGE_*``) and ``~/.config/babelbridge``.
+"""Runtime settings, loaded from env (``BABELAGENT_*``) and ``~/.config/babelagent``.
 
 Secrets are only ever read from the environment or the user's config dir. They
 are never hard-coded and never serialized into a topology.
@@ -12,18 +12,18 @@ import platformdirs
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-_CONFIG_DIR = Path(platformdirs.user_config_dir("babelbridge"))
+_CONFIG_DIR = Path(platformdirs.user_config_dir("babelagent"))
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_prefix="BABELBRIDGE_",
+        env_prefix="BABELAGENT_",
         env_file=None,
         case_sensitive=False,
         extra="ignore",
     )
 
-    # REST service (babelbridge.io.rest)
+    # REST service (babelagent.io.rest)
     api_token: str | None = None
     host: str = "127.0.0.1"
     port: int = 8099
