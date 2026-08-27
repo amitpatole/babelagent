@@ -9,6 +9,7 @@ entry-point group.
 
 from __future__ import annotations
 
+import os
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
@@ -42,6 +43,10 @@ def _load_entrypoint_adapters() -> None:
     if _ENTRYPOINTS_LOADED:
         return
     _ENTRYPOINTS_LOADED = True
+    # Discovery imports (runs) code from any installed `babelagent.adapters`
+    # plugin. Locked-down deployments can disable it. Trust your dependency set.
+    if os.environ.get("BABELAGENT_NO_PLUGINS"):
+        return
     try:
         from importlib.metadata import entry_points
 

@@ -7,10 +7,12 @@ agent) run a whole graph as a tool.
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
+from ..config import Settings, load_settings
 from ..core.errors import MissingDependencyError
-from .rest import _compiled, _safe
+from .rest import _compiled, _public_trace, _safe
 
 
 def _load_server_cls():  # type: ignore[no-untyped-def]
@@ -29,20 +31,27 @@ def _load_server_cls():  # type: ignore[no-untyped-def]
         raise MissingDependencyError("MCP server", "mcp") from exc
 
 
-def build_server(graph: Any, *, name: str = "babelagent"):  # type: ignore[no-untyped-def]
+def build_server(
+    graph: Any, *, name: str = "babelagent", settings: Settings | None = None
+):  # type: ignore[no-untyped-def]
     """Build an MCP server exposing *graph* as callable tools."""
     server_cls = _load_server_cls()
+    settings = settings or load_settings()
     compiled = _compiled(graph)
     server = server_cls(name)
+    # Bound concurrent runs and cap run time, same as the REST surface.
+    limiter = asyncio.Semaphore(max(1, settings.max_concurrency))
 
     @server.tool()
     async def run_graph(payload: str) -> dict[str, Any]:
         """Run the graph on a text payload and return its result."""
-        result = await compiled.run(payload)
+        async with limiter:
+            result = await compiled.run(payload, deadline_s=settings.request_timeout_s)
         return {
             "ok": result.ok,
             "verdict": result.verdict,
             "output": _safe(result.output),
+            "trace": _public_trace(result.trace),
         }
 
     @server.tool()

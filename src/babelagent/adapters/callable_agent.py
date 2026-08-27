@@ -18,6 +18,12 @@ class CallableAgent:
     Sync callables run in a worker thread so they never block the event loop.
     The callable's return value becomes the next message's payload (unless it
     already returns a :class:`Message`).
+
+    Timeout caveat (residual): a node ``timeout_s`` / run ``deadline_s`` cancels
+    the awaiting coroutine, but Python cannot force-kill the worker thread, so a
+    *blocked* sync callable keeps running until it returns on its own (the run
+    still reports the timeout). For untrusted or possibly-blocking work, prefer
+    an async agent or an out-of-process agent, which can be interrupted.
     """
 
     def __init__(self, fn: Callable[..., Any], *, name: str | None = None) -> None:

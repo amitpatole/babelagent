@@ -44,6 +44,7 @@ class _Outcome:
     grade: Grade | None
     error: str | None
     elapsed_ms: int
+    errored: bool = False  # True only for a genuine exception (its text is sensitive)
 
 
 async def _maybe_await(value: Any) -> Any:
@@ -132,17 +133,19 @@ class _Run:
             except TimeoutError:
                 return _Outcome(name, NodeState.FAILED, None, None, "node timed out", _ms(start))
             except Exception as exc:  # noqa: BLE001 — record any agent failure as a node failure
+                # Full text kept in the local trace for debugging; marked
+                # `errored` so network surfaces (REST/MCP) redact it.
                 return _Outcome(
                     name, NodeState.FAILED, None, None,
-                    f"{type(exc).__name__}: {exc}", _ms(start)
+                    f"{type(exc).__name__}: {exc}", _ms(start), errored=True,
                 )
 
             grade: Grade | None = None
             if node.check is not None:
                 try:
                     grade = await _maybe_await(node.check(out, self.ctx))
-                except Exception as exc:  # noqa: BLE001
-                    grade = Grade.failed(f"check raised {type(exc).__name__}: {exc}")
+                except Exception as exc:  # noqa: BLE001 — class name only, no message (may leak internals)
+                    grade = Grade.failed(f"check raised {type(exc).__name__}")
                 if node.gate.blocks(grade.verdict):
                     return _Outcome(
                         name, NodeState.FAILED, out, grade,
@@ -204,6 +207,7 @@ class _Run:
                 "verdict": (outcome.grade.verdict.value if outcome.grade else None),
                 "reason": outcome.error or (outcome.grade.reason if outcome.grade else ""),
                 "elapsed_ms": outcome.elapsed_ms,
+                "errored": outcome.errored,
             }
         )
 

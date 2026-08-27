@@ -18,7 +18,7 @@ import httpx
 from ..core.agent import Context
 from ..core.errors import AdapterError
 from ..core.message import Message
-from .http_agent import guard_url
+from .http_agent import MAX_RESPONSE_BYTES, _read_capped, guard_url
 
 # Agent Card discovery paths, newest first (the A2A spec renamed the file).
 _CARD_PATHS = ("/.well-known/agent-card.json", "/.well-known/agent.json")
@@ -63,11 +63,20 @@ class A2AAgent:
                 }
             },
         }
-        async with httpx.AsyncClient(timeout=self.timeout) as client:
-            resp = await client.post(self.url, json=request)
-        resp.raise_for_status()
-        body = resp.json()
-        if "error" in body and body["error"]:
+        guard_url(self.url, allow_private=self.allow_private)  # re-validate (TOCTOU)
+        async with httpx.AsyncClient(timeout=self.timeout, follow_redirects=False) as client:
+            async with client.stream("POST", self.url, json=request) as resp:
+                resp.raise_for_status()
+                raw = await _read_capped(resp)
+        try:
+            import json
+
+            body = json.loads(raw)
+        except ValueError as exc:
+            raise AdapterError("A2A response was not valid JSON") from exc
+        if not isinstance(body, dict):
+            raise AdapterError("A2A response was not a JSON object")
+        if body.get("error"):
             raise AdapterError(f"A2A agent returned error: {body['error']}")
         out = _extract_text(body.get("result", body))
         return message.with_payload(out, node=self.name)
@@ -115,16 +124,20 @@ def _join_parts(parts: Any) -> str:
 
 async def _fetch_agent_card(base_url: str, *, allow_private: bool) -> dict[str, Any]:
     base = base_url.rstrip("/")
-    async with httpx.AsyncClient(timeout=15.0) as client:
+    async with httpx.AsyncClient(timeout=15.0, follow_redirects=False) as client:
         for path in _CARD_PATHS:
             url = guard_url(base + path, allow_private=allow_private)
             try:
-                resp = await client.get(url)
+                async with client.stream("GET", url) as resp:
+                    if resp.status_code != 200:
+                        continue
+                    raw = await _read_capped(resp, cap=MAX_RESPONSE_BYTES)
             except httpx.HTTPError:
                 continue
-            if resp.status_code == 200:
-                try:
-                    return resp.json()
-                except ValueError:
-                    continue
+            try:
+                import json
+
+                return json.loads(raw)
+            except ValueError:
+                continue
     raise AdapterError(f"no A2A agent card found under {base_url!r}")

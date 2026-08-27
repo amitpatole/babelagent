@@ -1,7 +1,8 @@
-"""Runtime settings, loaded from env (``BABELAGENT_*``) and ``~/.config/babelagent``.
+"""Runtime settings, loaded from environment variables (``BABELAGENT_*``).
 
-Secrets are only ever read from the environment or the user's config dir. They
-are never hard-coded and never serialized into a topology.
+Secrets (e.g. ``api_token``) are read only from the environment. They are never
+hard-coded and never serialized into a topology. ``config_dir`` is exposed as a
+conventional location for future file-based config but is not read today.
 """
 
 from __future__ import annotations

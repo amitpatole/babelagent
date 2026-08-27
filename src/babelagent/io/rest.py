@@ -17,6 +17,7 @@ Hardened from birth (the security cadence tightens this further):
 
 import hmac
 import ipaddress
+import math
 from typing import Any
 
 from ..config import Settings, load_settings
@@ -41,15 +42,40 @@ def _is_loopback(host: str) -> bool:
         return False
 
 
-def _safe(value: Any) -> Any:
-    """Keep JSON-friendly values as-is; stringify anything else."""
+_MAX_SAFE_DEPTH = 64
+
+
+def _safe(value: Any, _depth: int = 0) -> Any:
+    """Keep JSON-friendly values as-is; stringify anything else.
+
+    Depth-bounded so an adversarially deep (or cyclic) agent output cannot
+    exhaust the stack when it is serialized for the response.
+    """
+    if _depth >= _MAX_SAFE_DEPTH:
+        return "...(truncated: max depth)"
     if isinstance(value, (str, int, float, bool, type(None))):
         return value
     if isinstance(value, dict):
-        return {str(k): _safe(v) for k, v in value.items()}
+        return {str(k): _safe(v, _depth + 1) for k, v in value.items()}
     if isinstance(value, (list, tuple)):
-        return [_safe(v) for v in value]
+        return [_safe(v, _depth + 1) for v in value]
     return str(value)
+
+
+def _public_trace(trace: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Redact internal exception text from a trace before returning it to a caller.
+
+    Gate reasons (author-written grade text) are kept; raw exception messages
+    (which may carry internal paths, upstream URLs, or SDK error detail) are
+    replaced with a generic marker. See scheduler's ``errored`` flag.
+    """
+    out = []
+    for rec in trace:
+        rec = dict(rec)
+        if rec.pop("errored", False):
+            rec["reason"] = "error"
+        out.append(rec)
+    return out
 
 
 def build_app(graph: Any, *, settings: Settings | None = None):  # type: ignore[no-untyped-def]
@@ -110,11 +136,20 @@ def build_app(graph: Any, *, settings: Settings | None = None):  # type: ignore[
         if not isinstance(body, dict):
             raise HTTPException(status_code=400, detail="body must be a JSON object")
         payload = body.get("payload")
-        deadline = body.get("deadline_s", settings.request_timeout_s)
+        # A caller may lower the deadline but never raise it above the server
+        # ceiling; reject non-finite / non-positive values (inf/nan/negative
+        # would defeat the per-run timeout entirely).
+        try:
+            deadline = float(body.get("deadline_s", settings.request_timeout_s))
+        except (TypeError, ValueError):
+            raise HTTPException(status_code=400, detail="invalid deadline_s") from None
+        if not math.isfinite(deadline) or deadline <= 0:
+            raise HTTPException(status_code=400, detail="deadline_s must be finite and positive")
+        deadline = min(deadline, settings.request_timeout_s)
 
         async with limiter:
             try:
-                result = await compiled.run(payload, deadline_s=float(deadline))
+                result = await compiled.run(payload, deadline_s=deadline)
             except HTTPException:
                 raise
             except Exception:  # noqa: BLE001 — never leak internals to the caller
@@ -123,7 +158,7 @@ def build_app(graph: Any, *, settings: Settings | None = None):  # type: ignore[
             "ok": result.ok,
             "verdict": result.verdict,
             "output": _safe(result.output),
-            "trace": result.trace,
+            "trace": _public_trace(result.trace),
         }
 
     return app

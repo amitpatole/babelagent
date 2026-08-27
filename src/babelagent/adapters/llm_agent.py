@@ -1,7 +1,8 @@
 """Adapt an LLM provider (Anthropic / OpenAI / Ollama) as a graph agent.
 
 Providers are imported lazily; installing the matching extra is required at
-call time. API keys are resolved from the environment / ``~/.config`` only.
+call time. API keys are resolved from the environment only (or passed explicitly
+to ``LLM(...)``); they are never hard-coded.
 """
 
 from __future__ import annotations
