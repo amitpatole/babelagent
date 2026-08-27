@@ -43,6 +43,10 @@ sits *on top of* A2A/MCP rather than against them).
 
 ## Install
 
+Requires **Python 3.11+**. (If your default `python` is older, `pip install babelagent` says "No
+matching distribution found" — use a 3.11+ interpreter: `uv venv --python 3.12 && uv pip install
+babelagent`, or `uv tool install babelagent` for just the CLI.)
+
 ```bash
 pip install babelagent                 # light base (callables + HTTP + A2A)
 pip install "babelagent[mcp]"          # MCP tools + MCP server

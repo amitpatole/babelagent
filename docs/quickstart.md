@@ -2,12 +2,25 @@
 
 ## Install
 
+Requires **Python 3.11+**.
+
 ```bash
 pip install babelagent
 ```
 
 The base install is light (Pydantic, httpx, Typer). Heavy integrations live behind extras and are
 imported only when used.
+
+!!! tip "‘No matching distribution found’?"
+    That means your default `pip` is tied to an older Python (e.g. 3.9). `babelagent` needs 3.11+.
+    Use a 3.11+ interpreter instead:
+    ```bash
+    uv venv --python 3.12 && uv pip install babelagent   # a project venv
+    # or, just the CLI, installed globally:
+    uv tool install babelagent
+    # or with a specific interpreter you already have:
+    python3.12 -m pip install --user babelagent
+    ```
 
 ## A linear graph
 

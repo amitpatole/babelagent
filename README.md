@@ -66,6 +66,10 @@ result = await g.run(document)
 
 ## Install
 
+Requires **Python 3.11+**. (On a box whose default `python` is older, `pip install babelagent` reports
+"No matching distribution found" — use a 3.11+ interpreter, e.g. `uv venv --python 3.12 && uv pip
+install babelagent`, or `uv tool install babelagent` for just the CLI.)
+
 ```bash
 pip install babelagent                 # light base (callables + HTTP)
 pip install "babelagent[mcp]"          # MCP tools
