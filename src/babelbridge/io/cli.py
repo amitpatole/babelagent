@@ -1,0 +1,82 @@
+"""``babelbridge`` command-line interface."""
+
+from __future__ import annotations
+
+import asyncio
+import json
+
+import typer
+
+app = typer.Typer(
+    add_completion=False,
+    help="Babelbridge — one common tongue for agents that were never meant to talk.",
+    no_args_is_help=True,
+)
+
+
+@app.command()
+def version() -> None:
+    """Print the installed Babelbridge version."""
+    from .. import __version__
+
+    typer.echo(__version__)
+
+
+@app.command()
+def doctor() -> None:
+    """Report which optional adapter families are available."""
+    from .doctor import format_checks, run_checks
+
+    typer.echo("babelbridge doctor")
+    typer.echo(format_checks(run_checks()))
+
+
+@app.command()
+def demo() -> None:
+    """Run a key-free demo: a broken graph (gated FAIL) then a fixed graph (PASS)."""
+    from ._demo_assets import DEMO_TEXT, build_broken, build_fixed
+
+    typer.echo("Babelbridge demo — one agent, a quality gate, no API key.\n")
+    typer.echo(f"input: {DEMO_TEXT}\n")
+
+    broken = asyncio.run(build_broken().run(DEMO_TEXT))
+    typer.secho(f"broken graph → verdict={broken.verdict} ok={broken.ok}",
+                fg=typer.colors.RED)
+    typer.echo(f"  {_last_reason(broken)}\n")
+
+    fixed = asyncio.run(build_fixed().run(DEMO_TEXT))
+    typer.secho(f"fixed graph  → verdict={fixed.verdict} ok={fixed.ok}",
+                fg=typer.colors.GREEN)
+    typer.echo(f"  result: {fixed.output}")
+
+
+@app.command()
+def inspect(
+    source: str | None = typer.Argument(
+        None, help="Path to a Python file exposing a `graph` (optional)."
+    ),
+) -> None:
+    """Print the topology of the demo graph (or a graph from a file)."""
+    if source is None:
+        from ._demo_assets import build_fixed
+
+        graph = build_fixed().compile()
+        typer.echo(json.dumps(graph.spec(), indent=2))
+        return
+    typer.secho("Loading a graph from a file is not wired yet.", fg=typer.colors.YELLOW)
+    raise typer.Exit(code=1)
+
+
+def _last_reason(result) -> str:  # type: ignore[no-untyped-def]
+    for record in reversed(result.trace):
+        if record.get("reason"):
+            return f"{record['node']}: {record['reason']}"
+    return "(no issues recorded)"
+
+
+def main() -> None:
+    app()
+
+
+if __name__ == "__main__":
+    main()

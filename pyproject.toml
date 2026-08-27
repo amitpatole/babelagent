@@ -3,14 +3,14 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "byoa-sdk"
+name = "babelbridge"
 version = "0.1.0"
-description = "Bring Your Own Agent — a factory + assembly line SDK: plug any agent onto a station and produce what you want."
+description = "One common tongue for agents that were never meant to talk: a neutral layer that lets heterogeneous agents exchange messages and collaborate (A2A)."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
 authors = [{ name = "Amit Patole", email = "amit.patole@gmail.com" }]
-keywords = ["ai", "agents", "orchestration", "pipeline", "dag", "adapters", "byoa"]
+keywords = ["ai", "agents", "a2a", "interoperability", "orchestration", "dag", "adapters", "multi-agent"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -53,14 +53,14 @@ dev = [
 ]
 
 [project.scripts]
-byoa = "byoa.io.cli:main"
+babelbridge = "babelbridge.io.cli:main"
 
 # Built-in adapters register here; third parties add their own entry points to
 # extend adapt() without patching core.
-[project.entry-points."byoa.adapters"]
+[project.entry-points."babelbridge.adapters"]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/byoa"]
+packages = ["src/babelbridge"]
 
 [tool.ruff]
 line-length = 100

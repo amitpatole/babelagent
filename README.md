@@ -1,73 +1,79 @@
-# BYOA — Bring Your Own Agent
+# Babelbridge
 
-> A factory with an assembly line. Bring any agent, plug it onto a station, run the line, produce what you want.
+> One common tongue for agents that were never meant to talk.
 
-BYOA is a lightweight, framework-agnostic SDK for composing heterogeneous agents into a verifiable
-production line. The SDK is the **factory**; you bring your own agents — any callable, HTTP/OpenAPI
-endpoint, MCP tool, framework agent (LangChain / CrewAI / AutoGen), or LLM — and plug each one onto a
-**station**. The line runs them and hands you a **product**, with an optional quality **gate** at every
-station.
+Every agent framework has its own idea of what an agent is. LangChain has Runnables with `.invoke`,
+CrewAI has Crews with `.kickoff`, AutoGen has agents with `.generate_reply`, an LLM has
+`messages.create`, a microservice has an HTTP route. None of them agree on a shape, so connecting any
+two means writing glue.
 
-The headline is **`adapt()`**: hand BYOA almost anything and it builds the connector on the fly.
+Babelbridge is the neutral layer in between. You bring your own agents, whatever they are (a callable,
+an HTTP/OpenAPI endpoint, an MCP tool, a framework agent, or an LLM), and it wraps each one in a single
+shared interface so they can exchange messages and collaborate on a task, **agent-to-agent (A2A)**.
+The value is not any single adapter. It is that once something is adapted, it works with everything
+else you have adapted.
+
+The headline is **`adapt()`**: hand Babelbridge almost anything and it builds the connector on the fly.
 
 ```python
 import asyncio
-from byoa import Factory
+from babelbridge import Graph
 
 async def main():
-    line = (
-        Factory()
-        .station("clean",     str.strip)
-        .station("shout",     str.upper)
-        .station("exclaim",   lambda s: s + "!")
+    graph = (
+        Graph()
+        .node("clean",   str.strip)
+        .node("shout",   str.upper)
+        .node("exclaim", lambda s: s + "!")
     )
-    product = await line.run("  hello  ")
-    print(product.output)   # "HELLO!"
+    result = await graph.run("  hello  ")
+    print(result.output)   # "HELLO!"
 
 asyncio.run(main())
 ```
 
-Branch, run in parallel, and join with barrier policies:
+Let different agents work in parallel and hand their results to each other, with barrier policies on
+the join:
 
 ```python
-f = Factory()
-f.station("src",    lambda n: n)
-f.station("double", lambda n: n * 2, after=["src"])
-f.station("square", lambda n: n * n, after=["src"])
-f.join("sum", after=["double", "square"], agent=lambda d: d["double"] + d["square"])
-product = await f.run(3)   # 6 + 9 == 15
+g = Graph()
+g.node("src",     lambda text: text)
+g.node("summary", adapt(langchain_agent), after=["src"])   # a LangChain agent
+g.node("labels",  adapt("https://api.example.com/classify"), after=["src"])  # an HTTP service
+g.join("merge", after=["summary", "labels"], agent=combine, barrier="all")
+result = await g.run(document)
 ```
 
 ## Concepts
 
 | Concept | What it is |
 |---|---|
-| **Factory** | Builder that assembles a line (linear sugar **and** a DAG API) |
-| **Line** | The compiled, validated assembly line; `await line.run(payload)` |
-| **Station** | One node: an agent + an optional quality check/gate |
-| **Agent** | The uniform `async run(part, ctx) -> part` worker interface |
+| **Graph** | Builds the network of agents (linear chaining **and** a DAG API) |
+| **CompiledGraph** | The validated, runnable graph; `await graph.run(payload)` |
+| **Node** | One participant: an agent plus an optional quality check/gate |
+| **Agent** | The uniform `async run(message, ctx) -> message` interface |
 | **`adapt()`** | Turns any brought object into an Agent, inferring the adapter |
-| **Part / Product** | The envelope on the belt / the finished output + run trace |
+| **Message / Result** | The envelope agents exchange / the final output + run trace |
 | **Barrier** | Fan-in join policy: `all` · `k_of_n` · `optional` |
 
 ## Install
 
 ```bash
-pip install byoa-sdk                 # light base wheel (callables + HTTP)
-pip install "byoa-sdk[mcp]"          # MCP tools
-pip install "byoa-sdk[cloud]"        # Anthropic / OpenAI
-pip install "byoa-sdk[ollama]"       # local models
-pip install "byoa-sdk[frameworks]"   # LangChain / CrewAI / AutoGen
-pip install "byoa-sdk[serve]"        # REST service
-pip install "byoa-sdk[all]"
+pip install babelbridge                 # light base (callables + HTTP)
+pip install "babelbridge[mcp]"          # MCP tools
+pip install "babelbridge[cloud]"        # Anthropic / OpenAI
+pip install "babelbridge[ollama]"       # local models
+pip install "babelbridge[frameworks]"   # LangChain / CrewAI / AutoGen
+pip install "babelbridge[serve]"        # REST service
+pip install "babelbridge[all]"
 ```
 
 ## Try it (no API key)
 
 ```bash
-byoa demo      # a broken station (gated FAIL) then a fixed one (PASS)
-byoa doctor    # which adapter families are available
-byoa inspect   # print a line's topology as JSON
+babelbridge demo      # a broken agent (gated FAIL) then a fixed one (PASS)
+babelbridge doctor    # which adapter families are available
+babelbridge inspect   # print a graph's topology as JSON
 ```
 
 ## Status

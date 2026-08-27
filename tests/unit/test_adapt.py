@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import pytest
 
-from byoa import Part, adapt, register_adapter
-from byoa.core.agent import Context, is_agent
-from byoa.core.errors import AdapterError
+from babelbridge import Message, adapt, register_adapter
+from babelbridge.core.agent import Context, is_agent
+from babelbridge.core.errors import AdapterError
 
 
 async def _run(agent, payload):
-    return await agent.run(Part(payload=payload), Context(run_id="t"))
+    return await agent.run(Message(payload=payload), Context(run_id="t"))
 
 
 async def test_adapt_sync_callable():
@@ -39,7 +39,7 @@ async def test_adapt_multiarg_dict_payload():
 
 
 def test_adapt_already_agent_passthrough():
-    from byoa.core.agent import IdentityAgent
+    from babelbridge.core.agent import IdentityAgent
 
     ident = IdentityAgent("keep")
     assert adapt(ident) is ident
@@ -56,8 +56,8 @@ async def test_register_custom_adapter():
             self.name = "shouter"
             self.tag = tag
 
-        async def run(self, part, ctx):
-            return part.with_payload(f"{self.tag}!{part.payload}")
+        async def run(self, message, ctx):
+            return message.with_payload(f"{self.tag}!{message.payload}")
 
     register_adapter(
         "shout",
@@ -69,8 +69,8 @@ async def test_register_custom_adapter():
     assert out.payload == "hey!world"
 
 
-async def test_factory_auto_adapts_callable():
-    from byoa import Factory
+async def test_graph_auto_adapts_callable():
+    from babelbridge import Graph
 
-    product = await Factory().station("up", str.upper).run("hi")
-    assert product.output == "HI"
+    result = await Graph().node("up", str.upper).run("hi")
+    assert result.output == "HI"
