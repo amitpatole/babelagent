@@ -8,6 +8,14 @@ authors:
     email: amit.patole@gmail.com
 repository-code: "https://github.com/amitpatole/babelagent"
 url: "https://amitpatole.github.io/babelagent/"
+doi: 10.5281/zenodo.22129957
+identifiers:
+  - type: doi
+    value: 10.5281/zenodo.22129957
+    description: Concept DOI (all versions)
+  - type: doi
+    value: 10.5281/zenodo.22129958
+    description: Version DOI (v0.1.0)
 abstract: >-
   The Babel that lets AI agents understand each other: a neutral, framework-agnostic
   layer where heterogeneous agents (callables, HTTP/OpenAPI, MCP, framework agents,

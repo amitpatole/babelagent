@@ -1,5 +1,10 @@
 # Babelagent
 
+[![PyPI](https://img.shields.io/pypi/v/babelagent.svg)](https://pypi.org/project/babelagent/)
+[![Docs](https://img.shields.io/badge/docs-live-3f8a86)](https://amitpatole.github.io/babelagent/)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22129957.svg)](https://doi.org/10.5281/zenodo.22129957)
+[![License: MIT](https://img.shields.io/badge/license-MIT-1b1a17)](LICENSE)
+
 > The Babel that lets AI agents understand each other. One shared tongue for agents that were never meant to talk.
 
 Every agent framework has its own idea of what an agent is. LangChain has Runnables with `.invoke`,
@@ -76,8 +81,16 @@ babelagent doctor    # which adapter families are available
 babelagent inspect   # print a graph's topology as JSON
 ```
 
+## Cite
+
+If you use Babelagent, please cite it (concept DOI, always resolves to the latest version):
+
+> Amit Patole. *Babelagent*. https://doi.org/10.5281/zenodo.22129957
+
+A machine-readable `CITATION.cff` is in the repo.
+
 ## Status
 
-Alpha, in active development. Local-only for now. MIT licensed.
+Alpha, in active development. MIT licensed.
 
 — amitpatole

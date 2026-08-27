@@ -80,4 +80,9 @@ fixed graph  → verdict=pass ok=True
 Next: the [Quickstart](quickstart.md), the [adapters guide](adapters.md), and
 [agent-to-agent](a2a.md).
 
+## Cite
+
+Concept DOI (always resolves to the latest version):
+[10.5281/zenodo.22129957](https://doi.org/10.5281/zenodo.22129957).
+
 *— amitpatole*
