@@ -1,0 +1,22 @@
+cff-version: 1.2.0
+title: Babelagent
+message: "If you use Babelagent, please cite it as below."
+type: software
+authors:
+  - family-names: Patole
+    given-names: Amit
+    email: amit.patole@gmail.com
+repository-code: "https://github.com/amitpatole/babelagent"
+url: "https://amitpatole.github.io/babelagent/"
+abstract: >-
+  The Babel that lets AI agents understand each other: a neutral, framework-agnostic
+  layer where heterogeneous agents (callables, HTTP/OpenAPI, MCP, framework agents,
+  LLMs) share one interface, collaborate agent-to-agent, and are graded at each hop.
+keywords:
+  - ai
+  - agents
+  - a2a
+  - interoperability
+  - multi-agent
+license: MIT
+version: 0.1.0
