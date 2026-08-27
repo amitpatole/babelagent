@@ -21,8 +21,12 @@ from .message import Message, Result
 from .node import BarrierKind
 from .topology import Topology
 
-# Bound on concurrent nodes, so a wide fan-out cannot spawn unbounded tasks.
+# Max concurrent node executions (a wide fan-out queues on the semaphore).
 DEFAULT_CONCURRENCY = 8
+
+# How long the cancellation cleanup waits for cooperative tasks to unwind before
+# abandoning any that swallow cancellation (keeps the guillotine time-bounded).
+_CLEANUP_GRACE_S = 0.25
 
 
 class NodeState(str, Enum):
@@ -207,12 +211,14 @@ class _Run:
             return self._finish()
         finally:
             # On cancellation (the run guillotine, or a REST client disconnect)
-            # cancel and await the in-flight node tasks, so cooperative agents
-            # actually receive the CancelledError instead of being orphaned.
+            # cancel the in-flight node tasks so cooperative agents receive their
+            # CancelledError. Wait only briefly for them to unwind, then abandon
+            # any that swallow cancellation — otherwise awaiting a hostile agent
+            # here would block past the guillotine's bound (the whole point of it).
             if running:
                 for task in running.values():
                     task.cancel()
-                await asyncio.gather(*running.values(), return_exceptions=True)
+                await asyncio.wait(set(running.values()), timeout=_CLEANUP_GRACE_S)
 
     def _absorb(self, outcome: _Outcome) -> None:
         self.states[outcome.name] = outcome.state

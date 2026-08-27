@@ -285,7 +285,7 @@ def test_run_guillotine_bounds_cancellation_swallowing_agent():
 
     async def hostile(_):
         # Ignores cancellation but yields, so the outer guillotine can fire.
-        for _ in range(100):
+        for _ in range(60):  # ~3s: clearly longer than the ~1.5s guillotine bound
             try:
                 await asyncio.sleep(0.05)
             except asyncio.CancelledError:
