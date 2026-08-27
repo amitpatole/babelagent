@@ -3,6 +3,21 @@
 All notable changes to Babelagent are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); this project uses semantic versioning.
 
+## [0.1.3] — 2026-08-27
+
+### Added
+- **Per-resource concurrency.** Tag nodes with `resource="..."` and pass `resource_limits={...}` to
+  `run()`. Nodes sharing a resource share a concurrency limit, so the same graph runs a local model
+  sequentially (`{"local": 1}`) and a cloud API in parallel (`{"cloud": 8}`). The per-resource
+  semaphore is acquired before the global one, so a queued node never holds a global slot while
+  waiting. `resource` is surfaced in `topo_spec` / `babelagent inspect`.
+
+### Changed
+- **Dependencies now use bounded ranges** (`>=x,<next-major`) so a breaking or compromised major can't
+  be pulled in silently, and a hash-pinned **`uv.lock`** is committed for reproducible, verified
+  installs. Babelagent does not exact-pin (that belongs in the deploying app's lockfile). See
+  `docs/SECURITY.md` → Supply chain.
+
 ## [0.1.2] — 2026-08-27
 
 ### Changed
@@ -95,6 +110,7 @@ All notable changes to Babelagent are documented here. Format follows
   and 1.x (`FastMCP`).
 - Key-free `babelagent demo`: a broken agent gated to FAIL, then a fixed one producing a PASS result.
 
+[0.1.3]: https://github.com/amitpatole/babelagent/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/amitpatole/babelagent/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/amitpatole/babelagent/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/amitpatole/babelagent/releases/tag/v0.1.0

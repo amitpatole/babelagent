@@ -75,6 +75,7 @@ class Graph:
         timeout_s: float | None = None,
         barrier: str | BarrierKind = "all",
         k: int | None = None,
+        resource: str | None = None,
     ) -> Graph:
         if name in self._nodes:
             raise ValueError(f"duplicate node name {name!r}")
@@ -89,6 +90,7 @@ class Graph:
             timeout_s=timeout_s,
             after=list(after),
             barrier=_coerce_barrier(barrier, k),
+            resource=resource,
         )
         self._last = name
         return self
@@ -141,12 +143,16 @@ class CompiledGraph:
         context: Context | None = None,
         deadline_s: float | None = None,
         concurrency: int = DEFAULT_CONCURRENCY,
+        resource_limits: dict[str, int] | None = None,
     ) -> Result:
         message = payload if isinstance(payload, Message) else Message(payload=payload)
         if context is None:
             deadline = time.monotonic() + deadline_s if deadline_s is not None else None
             context = Context(run_id=uuid.uuid4().hex, deadline=deadline)
-        run = run_topology(self.topology, message, context, concurrency=concurrency)
+        run = run_topology(
+            self.topology, message, context,
+            concurrency=concurrency, resource_limits=resource_limits,
+        )
         if deadline_s is None:
             return await run
         # Hard wall-clock guillotine: per-node cancellation can be defeated by an

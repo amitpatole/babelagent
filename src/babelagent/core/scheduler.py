@@ -9,6 +9,7 @@ skipping nodes that can no longer be satisfied.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import inspect
 import time
 from dataclasses import dataclass
@@ -80,11 +81,24 @@ def _record(
 class _Run:
     """Holds mutable state for a single graph execution."""
 
-    def __init__(self, topo: Topology, initial: Message, ctx: Context, concurrency: int) -> None:
+    def __init__(
+        self,
+        topo: Topology,
+        initial: Message,
+        ctx: Context,
+        concurrency: int,
+        resource_limits: dict[str, int] | None = None,
+    ) -> None:
         self.topo = topo
         self.initial = initial
         self.ctx = ctx
         self.sem = asyncio.Semaphore(max(1, concurrency))
+        # Per-resource semaphores: nodes tagged with the same `resource` share a
+        # limit (e.g. a local model that must run sequentially -> {"local": 1}).
+        self.resource_sems: dict[str, asyncio.Semaphore] = {
+            name: asyncio.Semaphore(max(1, limit))
+            for name, limit in (resource_limits or {}).items()
+        }
         self.states: dict[str, NodeState] = {n: NodeState.PENDING for n in topo.nodes}
         self.outputs: dict[str, Message] = {}
         self.grades: dict[str, Grade] = {}
@@ -158,7 +172,11 @@ class _Run:
         start = time.monotonic()
 
         timeout = _effective_timeout(node.timeout_s, self.ctx)
-        async with self.sem:
+        # Acquire the per-resource semaphore FIRST (so a queued node doesn't hold
+        # a global concurrency slot while it waits), then the global semaphore.
+        res_sem = self.resource_sems.get(node.resource) if node.resource else None
+        res_ctx: Any = res_sem if res_sem is not None else contextlib.nullcontext()
+        async with res_ctx, self.sem:
             try:
                 if timeout is not None and timeout <= 0:
                     raise TimeoutError
@@ -300,6 +318,7 @@ async def run_topology(
     ctx: Context,
     *,
     concurrency: int = DEFAULT_CONCURRENCY,
+    resource_limits: dict[str, int] | None = None,
 ) -> Result:
     """Execute *topo* starting from *initial*, returning the final Result."""
-    return await _Run(topo, initial, ctx, concurrency).execute()
+    return await _Run(topo, initial, ctx, concurrency, resource_limits).execute()

@@ -62,6 +62,27 @@ Fan-in `barrier` policies control the join: `all` (every upstream must succeed),
     `d["x"]`. A run that tolerated a crashed branch reports `ok=True` but `verdict="warn"` (never a
     clean `pass`), and the crashed node appears in `result.trace`.
 
+## Concurrency and resources
+
+Independent nodes run in parallel, bounded by an overall `concurrency` limit. But different backends
+have different limits: a **local model** may only serve one request at a time, while a **cloud API**
+handles many. Tag nodes with a `resource`, and pass `resource_limits` at run time — nodes sharing a
+resource share that limit, and the *same graph* runs sequential locally or parallel in the cloud just
+by changing the number.
+
+```python
+g = Graph()
+g.node("draft",   local_llm,  resource="local")   # a model that must run one-at-a-time
+g.node("expand",  local_llm,  resource="local")
+g.node("classify", cloud_llm, resource="cloud")
+
+# local nodes serialized (limit 1); cloud nodes up to 8 in parallel
+result = await g.run(text, resource_limits={"local": 1, "cloud": 8})
+```
+
+A node with no `resource` is bounded only by the overall `concurrency`. The per-resource semaphore is
+acquired before the global one, so a queued node never holds a global slot while it waits.
+
 ## Grade each hop
 
 Any node can carry a `check` that returns a `Grade` of pass, warn, or fail. A `gate` mode decides what

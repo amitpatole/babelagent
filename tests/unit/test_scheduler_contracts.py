@@ -109,3 +109,42 @@ async def test_compiled_graph_reuse_is_isolated():
     r2 = await cg.run("b")
     assert r1.output == "A" and r2.output == "B"
     assert len(r1.trace) == 1 and len(r2.trace) == 1  # no cross-run accumulation
+
+
+# --- per-resource concurrency (community feedback: local sequential / cloud parallel) ---
+
+def _make_busy_tracker():
+    active = {"now": 0, "max": 0}
+
+    async def busy(x):
+        import asyncio
+
+        active["now"] += 1
+        active["max"] = max(active["max"], active["now"])
+        await asyncio.sleep(0.05)
+        active["now"] -= 1
+        return x
+
+    return active, busy
+
+
+async def test_resource_limit_serializes_nodes():
+    active, busy = _make_busy_tracker()
+    g = Graph()
+    g.node("src", lambda n: n)
+    g.node("a", busy, after=["src"], resource="local")
+    g.node("b", busy, after=["src"], resource="local")
+    g.join("j", after=["a", "b"], agent=lambda d: d)
+    await g.run(1, resource_limits={"local": 1})
+    assert active["max"] == 1  # the two 'local' nodes never overlapped
+
+
+async def test_same_graph_runs_parallel_with_a_higher_limit():
+    active, busy = _make_busy_tracker()
+    g = Graph()
+    g.node("src", lambda n: n)
+    g.node("a", busy, after=["src"], resource="cloud")
+    g.node("b", busy, after=["src"], resource="cloud")
+    g.join("j", after=["a", "b"], agent=lambda d: d)
+    await g.run(1, resource_limits={"cloud": 4})
+    assert active["max"] == 2  # both ran concurrently (only two nodes)

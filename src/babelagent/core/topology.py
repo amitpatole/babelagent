@@ -84,6 +84,7 @@ class Topology:
                     "k": node.barrier.k,
                     "gate": node.gate.value,
                     "has_check": node.check is not None,
+                    "resource": node.resource,
                 }
                 for name, node in self.nodes.items()
             ],

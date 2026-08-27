@@ -51,6 +51,22 @@ deploy safely, and the residual risks no audit removes.
   worker thread cannot be force-killed (a Python limitation); use an async agent or an out-of-process
   agent for such work.
 
+## Supply chain
+
+Dependencies are declared as **bounded ranges** (`>=` for the features we use, `<next-major` so a
+breaking or compromised major cannot be pulled in silently). Babelagent intentionally does **not**
+exact-pin (`==`) its dependencies: a library that pins exact versions forces conflicts on everyone who
+installs it next to another package, and it blocks security patches. Reproducibility and integrity come
+from a lockfile instead:
+
+- A hash-pinned **`uv.lock`** is committed for reproducible, verified dev/CI installs
+  (`uv sync --locked`).
+- If you deploy Babelagent in an application and want to freeze exact versions, pin them in **your
+  application's** lockfile with hashes (`uv.lock`, `pip-compile --generate-hashes`, Poetry) — that is
+  the correct layer to pin, and it protects you against a compromised upstream release without
+  constraining other consumers.
+- Publishing uses **OIDC Trusted Publishing** (no long-lived PyPI token in the repo or CI).
+
 ## Documented residuals (not eliminated by any audit)
 
 - A blocked/CPU-bound **sync** callable's worker thread cannot be interrupted; the run still reports the
